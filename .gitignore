@@ -450,7 +450,9 @@ ui-tests/playwright-report
 ui-tests/.yarn/*
 ui-tests/.pnp.*
 
+# generated html
 notebook/templates/*.html
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
