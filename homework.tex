@@ -176,22 +176,96 @@ Those computations are calculated in this code:
 \end{figure}
 
 In both cases exponential distribution performs horribly, so we will reject that immideatly. At both plots there are data points, that lay in zero-probability area for uniform distribution, so it will be rejected too. We are left only with normal distribution, so we naturally choose it, additionaly it matches histogram peaks quite nicely.
+\pagebreak
 
 \section{Comparing histograms of 100 generated samples and data}
 
-lorem
+We have chosen parameters $\hat\mu = 1.76$ and $\hat \sigma = 0.05$ for distribution of those, who were not affected, and $\hat\mu = 1.56$ and $\hat\sigma = 0.08$ for those who were. We will generate a 100 random samples using following code:
 
-\section{Computing confidence intervals at $95\%$ level}
+\begin{lstlisting}
+samples = stats.norm.rvs(
+    loc=mu_hat, scale=np.sqrt(sigma2_hat]),
+    size=100, random_state=RND_SEED
+)
+\end{lstlisting}
 
-lorem
+Now let's plot histograms and compare them.
 
-\section{Testing if means equal $K$ at $5\%$ level}
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\textwidth]{./img/comparing_generated_unaffected.png}
+  \label{fig:comp_gen_unaff}
+\end{figure}
 
-lorem
+We can see that artificial one is more gravited towards mean, while given one is skewed. Besides that they share number of similarities, their ranges match almost perfectly and they both have similar probabilities for peak and tail values.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\textwidth]{./img/comparing_generated_affected.png}
+  \label{fig:comp_gen_aff}
+\end{figure}
+
+This histograms follows shape of data really closely, though in this case it tends to be more spread out, with it peak sitting $0.4$ points lower and samples reaching further.
+
+\section{Computing two-sided confidence intervals for expected value at $95\%$ level}
+
+We do not have theoretical variance, so we will need to use $t$ distribution to derive our intervals. From lectures we know that they will be of them form $\text{CI} = \left(\bar{X}_n - \frac{t_{n-1}\left(\frac{\alpha}{2}\right) \cdot s}{\sqrt{n}}, \bar{X}_n + \frac{t_{n-1}\left(\frac{\alpha}{2}\right) \cdot s}{\sqrt{n}}\right)$, we calulate them with this Python code:
+
+\begin{lstlisting}
+def compute_interval(X, alpha=0.05, n=n):
+    m = X.mean()
+    s = np.sqrt(((X - X.mean()) ** 2).sum() / (n - 1))
+    t_alpha_2 = stats.t.isf(alpha/2, df=n-1)
+    L = m - t_alpha_2 * s / np.sqrt(n)
+    R = m + t_alpha_2 * s / np.sqrt(n)
+    return L, R
+\end{lstlisting}
+
+As a result we obtain these confidence intervals at 95\% level for $\randv{unaff}$ and $\randv{aff}$:
+
+\begin{align*}
+  &\text{CI}_{\text{unaff}} = (1.6244165793298755, 1.89291672157853) \\
+  &\text{CI}_{\text{aff}} = (1.3931681784763261, 1.7268318183447595)
+\end{align*}
+
+\section{Testing two-sided hypothesis that expected values equal $K$ at $5\%$ level}
+
+Let's formulate hypothesis for unaffected distribution. Null hypothesis will be that expected value of $\randv{unaff}$ equals $K = 14$, hypothesis for affected distribution can be formulated analogically.
+
+\begin{align*}
+  H_0 &: \E\randv{unaff} = K \\
+  H_A &: \E\randv{unaff} \neq K
+\end{align*}
+
+To test this hypothesis we would need two-sided confidence intervals for mean. Luckily they were already computed, so we can reject null hypothesis for both affected and unaffected cases, because $K = 14 \not\in (1.39, 1.72)$ and $K = 14 \not\in = (1.39, 1.72)$, rounding was made for readability purposes.
 
 \section{Testing if means of distributions of volumes affected and unaffected people equal at $5\%$ level}
 
-lorem
+It is clear that null hypothesis is that expected values are equal. We choose left-sided alternative hypothesis, because estimated mean of affected distribution is lesser than mean of unaffected. We have no tests for comparing two different random variables, so we will need to transform our hypothesis in terms of difference of random variables. Let $Y = \randv{aff} - \randv{unaff}$ be such difference, then we can write hypothesis as follows:
+
+\begin{align*}
+  H_0 &: \E\randv{aff} = \E\randv{unaff} \iff \E Y = 0\\
+  H_A &: \E\randv{unaff} < \E\randv{unaff} \iff \E Y < 0
+\end{align*}
+
+To test this hypothesis we need to compute left confidence interval for $Y$. We do not know variance, so we will use formula with $t$-distribtion $CI_L = (-\infty, \bar Y - \frac{t_{n-1}(0.95) * s}{\sqrt{n}})$. We will use almost the same code, that we have used for computing two-sided intervals.
+
+\begin{lstlisting}
+X = aff - una
+m = X.mean()
+s = np.sqrt((X ** 2).sum() / (n - 1))
+alpha = 0.05
+
+R = m + stats.t.isf(alpha, df=n-1) * s / np.sqrt(n)
+print(f"Left CI is: (-inf, {R})")
+\end{lstlisting}
+
+After plugging values in we obtain left confidence interval $(-\infty, -0.055525533052551174)$. Zero does not belong to it, so we reject null hypothesis.
+
+
+\section{Conclusion}
+We have conducted analysis of Sleuth case0202 dataset, derived estimates for moments and tried to model both random variables as normal distribution. Lastly, we computed confidence intervals for them and tested if their expected values are equal by one-sided $t$-test.
+
 
 % Bibliography (Optional)
 \begin{thebibliography}{99}
