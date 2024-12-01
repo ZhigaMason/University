@@ -20,6 +20,9 @@
 \usepackage{pgfplotstable}
 \usepackage{rotating}       % For rotating the table
 \usepackage{listings}       % Code blocks
+\usepackage{indentfirst}
+\usepackage{float}
+
 
 
 %% \usepackage{showframe}     % Debug
@@ -58,7 +61,7 @@ With this document we present homework for BI-PST. Oleksandr Slyvka was chosen a
 
 \begin{multicols}{2}
 
-  Firstly, we will load data and display it as a table. There are $n=15$ samples in both categories, values seem to be greater than $1 \text{cm}^3$ and peak arounf $2 \text{cm}^3$, each row repesent a pair of twins, one of whom was affected by schizophrenia.
+  Firstly, we will load data and display it as a table. There are $n=15$ samples in both categories, values seem to be greater than $1 \text{cm}^3$ and peak around $2 \text{cm}^3$, each row repesents a pair of twins, one of whom was affected by schizophrenia and other was not.
 \columnbreak
 
 \pgfplotstableread[col sep=comma]{./data/case0202.csv}\datatable
@@ -71,30 +74,29 @@ With this document we present homework for BI-PST. Oleksandr Slyvka was chosen a
 \pagebreak
 
 \subsection{Estimations}
-  Let $\randv{unaff}$ and $\randv{aff}$ denote random variables of hippocampues volume of those who are unaffected and affected by schizofrenia respectively. Then we will compute estimates of mean, median and variance of those random variables. Median estimation will be chosen as 7th value of sorted sequence of data points. Estimated mean and variance will be computed with following formulas:
+  Let $\randv{unaff}$ and $\randv{aff}$ denote random variables of hippocampues volume of those who are unaffected and affected by schizofrenia respectively, we will refer to them as unaffected and affected distributions or random variables. We will compute estimates of mean, median and variance of those random variables. Median estimation will be chosen as 7th value of sorted sequence of data points also known as midpoint. Estimated mean and variance will be computed with following formulas:
 
 \begin{align*}
   \widehat{\E\randv{}} &= m_1 = \bar{X} = \frac{1}{n} \sum_{k = 1}^{n}X_i\\
   \widehat{\var\randv{}} &= s^2 = \frac{1}{n - 1} \sum_{k = 1}^n(X_i - \bar{X})^2
 \end{align*}
 
-  Additionaly we will compute uncorrected variance.
+  Additionaly we will compute uncorrected biased variance.
 
 \begin{equation*}
   S^2 = \frac{1}{n} \sum_{k = 1}^n(X_i - \bar{X})^2
 \end{equation*}
 
-  All those computations are incapsulated in function estimate.
+  All those computations are done by the following code:
 
 \begin{lstlisting}[basicstyle=\scriptsize]
-def estimate(X):
     print(f'{'Mean:' :<30}{X.mean():.3f}')
     print(f'{'Median:' :<30}{X.median():.3f}')
     print(f'{'Variance without correction:' :<30}{((X - X.mean()) ** 2).sum() / n :.3f}')
     print(f'{'Variance with correction:' :<30}{((X - X.mean()) ** 2).sum() / (n - 1):.3f}')
 \end{lstlisting}
 
-  After plugging values in we obtain such results.
+  After plugging values in, we obtain such results.
 
 \begin{align*}
   \widehat{\E\randv{unaff}} &= 1.759 & \widehat{\E\randv{aff}} &= 1.560 \\
@@ -108,7 +110,7 @@ Let's notice that estimated expected value of unaffected distribution is greater
 \pagebreak
 \section{Histograms and empirical cumulitive distribution functions}
 
-We will plot histograms, bins' width will be $0.2 \text{cm}^3$. Near them we will plot empirical cumuitive distribution functions, that will have a step of $1/n$ at each sample value.
+We will plot histograms, width of bins will be $0.2 \text{cm}^3$. By their side we will plot empirical cumulitive distribution functions, they will have a step of $1/n$ at each sample value.
 
 Let's plot histogram and ecdf for distribution of unaffected twins.
 
@@ -116,6 +118,7 @@ Let's plot histogram and ecdf for distribution of unaffected twins.
   \centering
   \includegraphics[scale=0.4]{./img/unaffected_hist_ecdf.png}
   \label{fig:unaff_ecdf}
+  \caption{Unaffected distribution}
 \end{figure}
 
 Here is the same plot for distibution of schizophrenic twins.
@@ -123,12 +126,14 @@ Here is the same plot for distibution of schizophrenic twins.
   \centering
   \includegraphics[scale=0.4]{./img/affected_hist_ecdf.png}
   \label{fig:aff_ecdf}
+  \caption{Affected distribution}
 \end{figure}
 
 We can see that later histogram is a little wider, that corresponds with its variance being greater than variance of unaffected distributions. Another observation is that it is altogether slightly shifted towards zero.
 
 \section{Choosing between normal, uniform and exponential distributions}
-We will try to model our data as one of the distributions listed above. To do that we need to find parameters of distributions, we will calculate them using method of moments. % TODO: insert link to original paper discussing MoM
+
+We will try to choose distribution for our data that will match it the best. To do that we need to find parameters of distributions, we will calculate them using method of moments. % TODO: insert link to original paper discussing MoM
 
 \subsection{Calculating parameters}
 
@@ -157,35 +162,48 @@ Those computations are calculated in this code:
     print(f"Uniform: {a_hat=}, {b_hat=}")
 \end{lstlisting}
 
-\pagebreak
+After we have it run we get following values.
+
+\begin{align*}
+  &\text{Unaffected}       & &\text{Affected} \\
+  &\hat\mu = 1.758         & &\hat\mu = 1.559\\
+  &\hat\sigma^2 = 0.054    & &\hat\sigma^2 = 0.084\\
+  &\hat a = 1.353          & &\hat a = 1.055\\
+  &\hat b = 2.164          & &\hat b = 2.064\\
+  &\hat\lambda = 0.568     & &\hat\lambda = 0.641\\
+\end{align*}
+
 
 \subsection{Comparing histogram and probability distribution functions}
 
-\begin{figure}[h!]
+\begin{figure}[H]
 \centering
 \begin{subfigure}{0.48\textwidth}
   \centering
   \includegraphics[scale=0.4]{./img/unaffected_distributions.png}
   \label{fig:unaff_dists}
+  \caption{Unaffected}
 \end{subfigure}
 \begin{subfigure}{0.48\textwidth}
   \centering
   \includegraphics[scale=0.4]{./img/affected_distributions.png}
   \label{fig:aff_dists}
+  \caption{Affected}
 \end{subfigure}
+  \caption{Histograms and pdfs}
 \end{figure}
 
-In both cases exponential distribution performs horribly, so we will reject that immideatly. At both plots there are data points, that lay in zero-probability area for uniform distribution, so it will be rejected too. We are left only with normal distribution, so we naturally choose it, additionaly it matches histogram peaks quite nicely.
-\pagebreak
+In both cases exponential distribution performs horribly, so we will reject it immideatly. At both plots there are data points (black dots on x-axis), that lay in zero-probability area for uniform distribution, so it will be rejected too. We are left only with normal distribution, so we naturally choose it, in addition it matches histogram peaks quite nicely.
+\newpage
 
 \section{Comparing histograms of 100 generated samples and data}
 
-We have chosen parameters $\hat\mu = 1.76$ and $\hat \sigma = 0.05$ for distribution of those, who were not affected, and $\hat\mu = 1.56$ and $\hat\sigma = 0.08$ for those who were. We will generate a 100 random samples using following code:
+We have computed parameters $\hat\mu = 1.76$ and $\hat \sigma = 0.05$ for distribution of those, who were not affected, and $\hat\mu = 1.56$ and $\hat\sigma = 0.08$ for those who were. We will generate a 100 random samples using following code:
 
 \begin{lstlisting}
 samples = stats.norm.rvs(
-    loc=mu_hat, scale=np.sqrt(sigma2_hat]),
-    size=100, random_state=RND_SEED
+    loc=mu_hat, scale=np.sqrt(sigma2_hat),
+    size=100, random_state=42
 )
 \end{lstlisting}
 
@@ -195,24 +213,27 @@ Now let's plot histograms and compare them.
   \centering
   \includegraphics[width=\textwidth]{./img/comparing_generated_unaffected.png}
   \label{fig:comp_gen_unaff}
+  \caption{Generated (left) and given (right) histograms of unaffected distributions}
 \end{figure}
 
-We can see that artificial one is more gravited towards mean, while given one is skewed. Besides that they share number of similarities, their ranges match almost perfectly and they both have similar probabilities for peak and tail values.
+We can see that artificial one is more gravited towards mean, while given one is skewed right. Besides that they share number of similarities, their ranges match almost perfectly and they both have similar probabilities for peak and tail values.
 
-\begin{figure}[h]
+\begin{figure}[H]
   \centering
   \includegraphics[width=\textwidth]{./img/comparing_generated_affected.png}
   \label{fig:comp_gen_aff}
+  \caption{Generated (left) and given (right) histograms of affected distributions}
 \end{figure}
 
-This histograms follows shape of data really closely, though in this case it tends to be more spread out, with it peak sitting $0.4$ points lower and samples reaching further.
+Artificially generated histogram follows shape of data closely, though in this case it tends to be more spread out, with it peak sitting $0.4$ points lower and samples reaching further from center.
 
 \section{Computing two-sided confidence intervals for expected value at $95\%$ level}
 
-We do not have theoretical variance, so we will need to use $t$ distribution to derive our intervals. From lectures we know that they will be of them form $\text{CI} = \left(\bar{X}_n - \frac{t_{n-1}\left(\frac{\alpha}{2}\right) \cdot s}{\sqrt{n}}, \bar{X}_n + \frac{t_{n-1}\left(\frac{\alpha}{2}\right) \cdot s}{\sqrt{n}}\right)$, we calulate them with this Python code:
+We do not have theoretical variance, so we will need to use $t$ distribution to derive our intervals. 
+
+From lectures we have formula $ \text{CI} = \left(\bar{X}_n - \frac{t_{n-1}\left(\frac{\alpha}{2}\right) \cdot s}{\sqrt{n}}, \bar{X}_n + \frac{t_{n-1}\left(\frac{\alpha}{2}\right) \cdot s}{\sqrt{n}}\right)$, we calulate it with next Python code:
 
 \begin{lstlisting}
-def compute_interval(X, alpha=0.05, n=n):
     m = X.mean()
     s = np.sqrt(((X - X.mean()) ** 2).sum() / (n - 1))
     t_alpha_2 = stats.t.isf(alpha/2, df=n-1)
@@ -224,24 +245,24 @@ def compute_interval(X, alpha=0.05, n=n):
 As a result we obtain these confidence intervals at 95\% level for $\randv{unaff}$ and $\randv{aff}$:
 
 \begin{align*}
-  &\text{CI}_{\text{unaff}} = (1.6244165793298755, 1.89291672157853) \\
-  &\text{CI}_{\text{aff}} = (1.3931681784763261, 1.7268318183447595)
+  &\text{CI}_{\text{unaff}} = (1.6244, 1.8929) \\
+  &\text{CI}_{\text{aff}} = (1.3931, 1.7268)
 \end{align*}
 
 \section{Testing two-sided hypothesis that expected values equal $K$ at $5\%$ level}
 
-Let's formulate hypothesis for unaffected distribution. Null hypothesis will be that expected value of $\randv{unaff}$ equals $K = 14$, hypothesis for affected distribution can be formulated analogically.
+Let's formulate hypothesis for unaffected distribution. Null hypothesis will be that expected value of $\randv{unaff}$ equals $K = 14$. Hypothesis for affected distribution can be formulated analogically.
 
 \begin{align*}
   H_0 &: \E\randv{unaff} = K \\
   H_A &: \E\randv{unaff} \neq K
 \end{align*}
 
-To test this hypothesis we would need two-sided confidence intervals for mean. Luckily they were already computed, so we can reject null hypothesis for both affected and unaffected cases, because $K = 14 \not\in (1.39, 1.72)$ and $K = 14 \not\in = (1.39, 1.72)$, rounding was made for readability purposes.
+To test this hypothesis we would need two-sided confidence intervals for mean. Luckily they were already computed, so we can reject null hypothesis for both affected and unaffected cases, because $K = 14 \not\in (1.39, 1.73)$ and $K = 14 \not\in (1.62, 1.89)$.
 
-\section{Testing if means of distributions of volumes affected and unaffected people equal at $5\%$ level}
+\section{Testing if means of affected and unaffected distributionsare  equal at $5\%$ level}
 
-It is clear that null hypothesis is that expected values are equal. We choose left-sided alternative hypothesis, because estimated mean of affected distribution is lesser than mean of unaffected. We have no tests for comparing two different random variables, so we will need to transform our hypothesis in terms of difference of random variables. Let $Y = \randv{aff} - \randv{unaff}$ be such difference, then we can write hypothesis as follows:
+It is clear that null hypothesis is that expected values are equal. We choose left-sided alternative hypothesis, because estimated mean of affected distribution is lesser than mean of unaffected, so it will be natural to asssume that schizofrenia shrinks one's hippocampus. We have no tests for comparing two different random variables, so we will need to transform our hypothesis in terms of difference of random variables. Let $Y = \randv{aff} - \randv{unaff}$ be such difference, then we can write hypothesis as follows:
 
 \begin{align*}
   H_0 &: \E\randv{aff} = \E\randv{unaff} \iff \E Y = 0\\
@@ -251,8 +272,8 @@ It is clear that null hypothesis is that expected values are equal. We choose le
 To test this hypothesis we need to compute left confidence interval for $Y$. We do not know variance, so we will use formula with $t$-distribtion $CI_L = (-\infty, \bar Y - \frac{t_{n-1}(0.95) * s}{\sqrt{n}})$. We will use almost the same code, that we have used for computing two-sided intervals.
 
 \begin{lstlisting}
-X = aff - una
-m = X.mean()
+Y = X_aff - X_unaff
+m = Y.mean()
 s = np.sqrt((X ** 2).sum() / (n - 1))
 alpha = 0.05
 
@@ -260,11 +281,11 @@ R = m + stats.t.isf(alpha, df=n-1) * s / np.sqrt(n)
 print(f"Left CI is: (-inf, {R})")
 \end{lstlisting}
 
-After plugging values in we obtain left confidence interval $(-\infty, -0.055525533052551174)$. Zero does not belong to it, so we reject null hypothesis.
+After plugging values in we obtain left confidence interval $(-\infty, -0.055)$. Zero is not covered, so we reject null hypothesis.
 
 
 \section{Conclusion}
-We have conducted analysis of Sleuth case0202 dataset, derived estimates for moments and tried to model both random variables as normal distribution. Lastly, we computed confidence intervals for them and tested if their expected values are equal by one-sided $t$-test.
+We have conducted analysis of Sleuth case0202 dataset, derived estimates for moments and chose normal distribution for both random variables. Lastly, we computed confidence intervals for means and tested if their expected values are equal by one-sided $t$-test.
 
 
 % Bibliography (Optional)
