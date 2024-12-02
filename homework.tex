@@ -198,7 +198,7 @@ In both cases exponential distribution performs horribly, so we will reject it i
 
 \section{Comparing histograms of 100 generated samples and data}
 
-We have computed parameters $\hat\mu = 1.76$ and $\hat \sigma = 0.05$ for distribution of those, who were not affected, and $\hat\mu = 1.56$ and $\hat\sigma = 0.08$ for those who were. We will generate a 100 random samples using following code:
+We have computed parameters $\hat\mu = 1.76$ and $\hat \sigma^2 = 0.05$ for distribution of those, who were not affected, and $\hat\mu = 1.56$ and $\hat\sigma^2 = 0.08$ for those who were. We will generate a 100 random samples using following code:
 
 \begin{lstlisting}
 samples = stats.norm.rvs(
@@ -269,19 +269,19 @@ It is clear that null hypothesis is that expected values are equal. We choose le
   H_A &: \E\randv{unaff} < \E\randv{unaff} \iff \E Y < 0
 \end{align*}
 
-To test this hypothesis we need to compute left confidence interval for $Y$. We do not know variance, so we will use formula with $t$-distribtion $CI_L = (-\infty, \bar Y - \frac{t_{n-1}(0.95) * s}{\sqrt{n}})$. We will use almost the same code, that we have used for computing two-sided intervals.
+To test this hypothesis we need to compute left confidence interval for $Y$. We do not know variance, so we will use formula with $t$-distribtion $CI_L = (-\infty, \bar Y + \frac{t_{n-1}(0.95) \cdot s}{\sqrt{n}})$. We will use almost the same code, that we have used for computing two-sided intervals.
 
 \begin{lstlisting}
 Y = X_aff - X_unaff
 m = Y.mean()
 s = np.sqrt((X ** 2).sum() / (n - 1))
-alpha = 0.05
+alpha = 0.95
 
 R = m + stats.t.isf(alpha, df=n-1) * s / np.sqrt(n)
 print(f"Left CI is: (-inf, {R})")
 \end{lstlisting}
 
-After plugging values in we obtain left confidence interval $(-\infty, -0.055)$. Zero is not covered, so we reject null hypothesis.
+After plugging values in we obtain left confidence interval $(-\infty, -0.34)$. Zero is not covered, so we reject null hypothesis in favor of the alternative.
 
 
 \section{Conclusion}
