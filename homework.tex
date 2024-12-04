@@ -137,11 +137,11 @@ We will try to choose distribution for our data that will match it the best. To 
 
 \subsection{Calculating parameters}
 
-Normal distribution is parametrized by $\mu$ and $\sigma^2$, uniform distribution is parametrized by its lower and upper bounds resp. $a$ and $b$ and exponential one is parametrized by the rate $\lambda$. All of them can be expressed as functions of at least two moments (exponential can be derived using single moment).
+Normal distribution is parametrized by $\mu$ and $\sigma^2$, uniform distribution is parametrized by its lower and upper bounds resp. $a$ and $b$ and exponential one is parametrized by the rate $\lambda$. All of them can be expressed as functions of at least two moments (exponential can be derived using single moment). Exception will be variance, as method of moments yields biased estimation, so we will use Bessel corrected estimation.
 
 \begin{align*}
   \hat \mu &= m_1 \\
-  \hat \sigma^2 &= m_2 - m_1^2 \\
+  \hat \sigma^2 &= \frac{n}{n - 1} \cdot (m_2 - m_1^2) \\
   \hat a &= m_1 - \sqrt{3(m_2 - m_1^2)}\\ 
   \hat b &= m_1 + \sqrt{3(m_2 - m_1^2)}\\ 
   \hat \lambda &= \frac{1}{m_1}
@@ -153,7 +153,7 @@ Those computations are calculated in this code:
     m1 = X.mean()
     m2 = (X ** 2).mean()
     mu_hat= m1
-    sigma2_hat= m2 - m1 ** 2
+    sigma2_hat=  (n / (n - 1))* (m2 - m1 ** 2)
     lambda_hat = 1 / m1
     a_hat = m1 - np.sqrt(3 * (m2 - m1**2))
     b_hat = m1 + np.sqrt(3 * (m2 - m1**2))
@@ -167,7 +167,7 @@ After we have it run we get following values.
 \begin{align*}
   &\text{Unaffected}       & &\text{Affected} \\
   &\hat\mu = 1.758         & &\hat\mu = 1.559\\
-  &\hat\sigma^2 = 0.054    & &\hat\sigma^2 = 0.084\\
+  &\hat\sigma^2 = 0.059    & &\hat\sigma^2 = 0.091\\
   &\hat a = 1.353          & &\hat a = 1.055\\
   &\hat b = 2.164          & &\hat b = 2.064\\
   &\hat\lambda = 0.568     & &\hat\lambda = 0.641\\
@@ -262,30 +262,29 @@ To test this hypothesis we would need two-sided confidence intervals for mean. L
 
 \section{Testing if means of affected and unaffected distributionsare  equal at $5\%$ level}
 
-It is clear that null hypothesis is that expected values are equal. We choose left-sided alternative hypothesis, because estimated mean of affected distribution is lesser than mean of unaffected, so it will be natural to asssume that schizofrenia shrinks one's hippocampus. We have no tests for comparing two different random variables, so we will need to transform our hypothesis in terms of difference of random variables. Let $Y = \randv{aff} - \randv{unaff}$ be such difference, then we can write hypothesis as follows:
+It is clear that null hypothesis is that expected values are equal. We choose right-sided alternative hypothesis, because estimated pooled mean of affected distribution is lesser than pooled mean of unaffected, so it will be natural to asssume that schizofrenia shrinks one's hippocampus. We can formulate hypotheses following way.
 
 \begin{align*}
-  H_0 &: \E\randv{aff} = \E\randv{unaff} \iff \E Y = 0\\
-  H_A &: \E\randv{unaff} < \E\randv{unaff} \iff \E Y < 0
+  H_0 &: \E\randv{aff} = \E\randv{unaff}\\
+  H_A &: \E\randv{aff} < \E\randv{unaff}
 \end{align*}
 
-To test this hypothesis we need to compute left confidence interval for $Y$. We do not know variance, so we will use formula with $t$-distribtion $CI_L = (-\infty, \bar Y + \frac{t_{n-1}(0.95) \cdot s}{\sqrt{n}})$. We will use almost the same code, that we have used for computing two-sided intervals.
+We will conduct right $t$-test for null hypothesis. One of its assumptions is that variances of both distributions are equal, we do not know theoretical values, so we will conduct Levene test at $5\%$ level, if variances of both distributions are equal. We will use scipy.stats implementation for that test:
 
 \begin{lstlisting}
-Y = X_aff - X_unaff
-m = Y.mean()
-s = np.sqrt((X ** 2).sum() / (n - 1))
-alpha = 0.95
-
-R = m + stats.t.isf(alpha, df=n-1) * s / np.sqrt(n)
-print(f"Left CI is: (-inf, {R})")
+stats.levene(X_aff, X_una, center='mean')
 \end{lstlisting}
 
-After plugging values in we obtain left confidence interval $(-\infty, -0.34)$. Zero is not covered, so we reject null hypothesis in favor of the alternative.
+Plugging values in we obtain $p$-value of $0.274$, it is greater than $0.05$, so we fail to reject null hypothesis (equalness of variances) at $5\%$ level and we can further assume, that they are equal. Therefore we can conduct $t$-test. Once again we will use scipy's implementation:
 
+\begin{lstlisting}
+stats.ttest_ind(X_aff, X_una, equal_var=True, alternative='less')
+\end{lstlisting}
+
+This code yields $p$-value of $0.028$, it is less than $0.05$, so we reject null hypothesis $\E\randv{aff} = \E\randv{unaff}$ in favor of the alternative at $5\%$ level.
 
 \section{Conclusion}
-We have conducted analysis of Sleuth case0202 dataset, derived estimates for moments and chose normal distribution for both random variables. Lastly, we computed confidence intervals for means and tested if their expected values are equal by one-sided $t$-test.
+We have conducted analysis of Sleuth case0202 dataset, derived estimates for moments and chose normal distribution for both random variables. Lastly, we computed confidence intervals for means and tested if their expected values are equal by two sample $t$-test.
 
 
 % Bibliography (Optional)
