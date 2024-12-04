@@ -262,20 +262,35 @@ To test this hypothesis we would need two-sided confidence intervals for mean. L
 
 \section{Testing if means of affected and unaffected distributionsare  equal at $5\%$ level}
 
-It is clear that null hypothesis is that expected values are equal. We choose right-sided alternative hypothesis, because estimated pooled mean of affected distribution is lesser than pooled mean of unaffected, so it will be natural to asssume that schizofrenia shrinks one's hippocampus. We can formulate hypotheses following way.
+It is clear that null hypothesis is that expected values are equal. We choose right-sided alternative hypothesis, because pooled mean of affected distribution is lower than pooled mean of unaffected, so it will be natural to asssume that schizofrenia shrinks one's hippocampus. We can formulate hypotheses following way.
 
 \begin{align*}
   H_0 &: \E\randv{aff} = \E\randv{unaff}\\
   H_A &: \E\randv{aff} < \E\randv{unaff}
+\end{align*}\label{Hypotheses}
+
+We will conduct right $t$-test for null hypothesis. One of its assumptions is that variances of both distributions are equal, we do not know theoretical values.
+
+\subsection{Variance equalness test at $5\%$ level}
+
+Let's formulate hypotheses for variance test:
+
+\begin{align*}
+  H_0 &: \var\randv{aff} = \var\randv{unaff}\\
+  H_A &: \var\randv{aff} \neq \var\randv{unaff}
 \end{align*}
 
-We will conduct right $t$-test for null hypothesis. One of its assumptions is that variances of both distributions are equal, we do not know theoretical values, so we will conduct Levene test at $5\%$ level, if variances of both distributions are equal. We will use scipy.stats implementation for that test:
+We will conduct Levene test at $5\%$ level, if variances of both distributions are equal. We will use scipy.stats implementation for that test:
 
 \begin{lstlisting}
 stats.levene(X_aff, X_una, center='mean')
 \end{lstlisting}
 
-Plugging values in we obtain $p$-value of $0.274$, it is greater than $0.05$, so we fail to reject null hypothesis (equalness of variances) at $5\%$ level and we can further assume, that they are equal. Therefore we can conduct $t$-test. Once again we will use scipy's implementation:
+Plugging values in we obtain $p$-value of $0.274$, it is greater than $0.05$, so we fail to reject null hypothesis (equalness of variances) at $5\%$ level and we can further assume, that variances of the distributions are equal. 
+
+\subsection{Conducting $t$-test for means}
+
+Now we will try to test hypotheses defined in the begining of section \ref{Hypotheses}. Once again we will use scipy's implementation to conduct test:
 
 \begin{lstlisting}
 stats.ttest_ind(X_aff, X_una, equal_var=True, alternative='less')
