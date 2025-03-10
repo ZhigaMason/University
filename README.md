@@ -12,7 +12,7 @@ Soft deadline means feedback is provided and  project can be fixed. Hard deadlin
 
 ## Project 1
 
-We decided to choose Oleksandr Slyvka as our representative.
+We decided to choose Oleksandr Slyvka as our representative with M=6
 
 ## Project 2
 TBA
