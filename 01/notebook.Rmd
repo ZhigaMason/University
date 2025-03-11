@@ -1,0 +1,45 @@
+---
+title: "BI-PRS Semestral Project 1"
+authors:
+  - Oleksandr SLyvka
+  - Illia Lyhin
+  - Maksym Khavil
+output: html_document
+date: "2025-03-11"
+---
+
+# Semestral Project 1
+
+Our representatice is Oleksandr Slyvka, his M-value is 6, that corresponds to Spain, thus we will investigate its data.
+
+## Libraries & Data
+```{r setup, include=FALSE}
+library(eurostat)
+```
+
+
+```{r}
+# Raw data
+data <- get_eurostat("nama_10r_3empers")
+# Selectin 2022 only
+data <- data[(as.Date('2022-01-01') <= data$TIME_PERIOD) & ( data$TIME_PERIOD < as.Date('2023-01-01')),]
+# Number of employed per a thousand citizens
+data <- data[(data$wstatus == 'EMP'),]
+# Only NUTS 3 regions
+data <- data[nchar(data$geo) == 5,]
+# Only in Spain
+data <- dplyr::filter(data, grepl('ES', geo))
+data
+```
+
+## Description and Graphs
+TODO
+
+## Contingency table
+TODO
+
+## Tests
+TODO
+
+## Conclusion
+TBA
