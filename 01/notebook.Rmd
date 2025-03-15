@@ -13,15 +13,18 @@ date: "2025-03-11"
 Our representatice is Oleksandr Slyvka, his M-value is 6, that corresponds to Spain, thus we will investigate its data.
 
 ## Libraries & Data
+
+The following libraries are used in this R Markdown notebook.
 ```{r setup, include=FALSE}
 library(eurostat)
+library(dplyr)
 ```
 
-
+We will download dataset, further comments are based on [metdata provided by eurostat]()
 ```{r}
 # Raw data
 data <- get_eurostat("nama_10r_3empers")
-# Selectin 2022 only
+# Selection 2022 only
 data <- data[(as.Date('2022-01-01') <= data$TIME_PERIOD) & ( data$TIME_PERIOD < as.Date('2023-01-01')),]
 # Number of employed per a thousand citizens
 data <- data[(data$wstatus == 'EMP'),]
