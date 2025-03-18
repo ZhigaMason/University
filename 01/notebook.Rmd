@@ -10,7 +10,7 @@ date: "2025-03-11"
 
 # Semestral Project 1
 
-Our representatice is Oleksandr Slyvka, his M-value is 6, that corresponds to Spain, thus we will investigate its data.
+Our representative is Oleksandr Slyvka, his M-value is 6, that corresponds to Spain, thus we will investigate its data.
 
 ## Libraries & Data
 
@@ -19,6 +19,9 @@ The following libraries are used in this R Markdown notebook.
 ```{R setup, include=FALSE}
 library(eurostat)
 library(dplyr)
+library(vtable)
+library(ggplot2)
+library(cowplot)
 ```
 
 We will download dataset, further comments are based on [metdata provided by eurostat]()
@@ -46,11 +49,12 @@ data[grepl("O|P|Q|R|S|T|U", data$nace_r2),]$nace_cat <- "PUBLIC"
 data[grepl("TOTAL", data$nace_r2),]$nace_cat         <- "TOTAL"
 data
 ```
-Lastly we will delete columns **freq**, **unit**, **wstatus** and **TIME_PERIOD** as they are constant (*A* - for annual frequency, *THS* - for one thousand unit, *EMP* - manually chosen wstatus, and *2022-01-01*), also **nace_r2** feature will be removed, becaused it was already transformed. Remaining **geo** and **nace_cat** features will be turned into factors and **values** will be renamed into **thousands_employed**.
-
+We will aggregate all samples based on their **geo** and **nace_cat** feature, because they were split on **nace_r2** subtypes in raw datset.
 ```{R}
 data <- aggregate(values ~ geo + nace_cat, data, sum)
 ```
+
+Lastly we will retype **geo** and **nace_cat** into factor and rename **values** to **thousands_employed**.
 
 ```{R}
 data$geo      <- as.factor(data$geo)
@@ -142,6 +146,8 @@ plarge <- ggplot(
 plot_grid(pfin, psmall, ppub, plarge)
 ```
 
+All Q-Q plots diverge from normal quantile line at the edges and explodes in positive side. We could say that those distributions are not normal, later normality can be tested by numerical methods.
+
 ## Contingency table
 
 We will create contingency table over all NUTS 3 regions and all NACE categories..
@@ -152,7 +158,7 @@ print("...")
 print(tail(ct, 3))
 ```
 
-each entry in contingency table is number of thousands of people in regio **geo** employed in **nace_cat** category. The last column and the last row are marginal sums, they are the sums of their respective row or column.
+each entry in contingency table is number of thousands of people in region **geo** employed in **nace_cat** category. The last column and the last row are marginal sums, they are the sums of their respective row or column.
 
 From data one can hypothesize that **SMALL_BUSINESS** and **LARGE_BUSINESS** come hand-in-hand in all regions. Let's plot histograms of those variables.
 
@@ -178,7 +184,7 @@ legend("topright", legend = c("SMALL_BUSINESS", "LARGE_BUSNESS"),
        )
 
 ```
-Distribution look almost the same, so we can say that they are the same.
+Distributions look almost the same, so we can say that they are the same.
 
 Statistically it leads to Pearson's Chi Squared Test. Let's formulate our hypothesis, let $X$ be a number of employed people in region in **SMALL_BUSINESS** and $Y$ be such number of people employed in **LARGE_BUSINESS**, then our hypotheses are:
 
@@ -194,8 +200,6 @@ chisq.test(ct_test)
 P-value is much less than $\alpha = 0.05$, so we fail to reject the null hypothesis. Conclusion is that there is a connection between number of people employed in **SMALL_BUSINESS** and **LARGE_BUSINESS**.
 
 ## Tests
-
-### Test 1: 
 
 ## Conclusion
 
