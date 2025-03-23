@@ -22,9 +22,10 @@ library(dplyr)
 library(vtable)
 library(ggplot2)
 library(cowplot)
+library(e1071)
 ```
 
-We will download dataset, further comments are based on [metdata provided by eurostat]()
+Now we will download dataset, and filter it to contain only information about employment in Spain regions in year 2022.
 
 ```{R}
 # Raw data
@@ -34,8 +35,7 @@ data <- data[(as.Date('2022-01-01') <= data$TIME_PERIOD) & ( data$TIME_PERIOD < 
 # Number of employed per a thousand citizens
 data <- data[(data$wstatus == 'EMP'),]
 # NUTS 3 regions in Spain
-data <- data[grepl('ES[0123456789]{3}', data$geo),]
-data
+data <- data[grepl('ES...', data$geo),]
 ```
 
 We will combine **nace_r2** into four coarser categories *LARGE_BUSINESS*, *SMALL_BUSINESS*, *FINANCE* and *PUBLIC*. Dataset additionally prodvides accumulated *TOTAL* by region, so we will transform it into its own category.
@@ -47,37 +47,46 @@ data[grepl("G|H|I|J", data$nace_r2),]$nace_cat       <- "SMALL_BUSINESS"
 data[grepl("K|L|M|N", data$nace_r2),]$nace_cat       <- "FINANCE"
 data[grepl("O|P|Q|R|S|T|U", data$nace_r2),]$nace_cat <- "PUBLIC"
 data[grepl("TOTAL", data$nace_r2),]$nace_cat         <- "TOTAL"
-data
-```
-We will aggregate all samples based on their **geo** and **nace_cat** feature, because they were split on **nace_r2** subtypes in raw datset.
-```{R}
-data <- aggregate(values ~ geo + nace_cat, data, sum)
+head(data)
 ```
 
-Lastly we will retype **geo** and **nace_cat** into factor and rename **values** to **thousands_employed**.
+We will aggregate all samples based on their **geo** and **nace_cat** feature, because they were split on **nace_r2** subtypes in raw datset.
+
+```{R}
+data <- aggregate(values ~ geo + nace_cat, data, sum)
+head(data)
+```
+
+Our data contains region *ESZZZ* , which is extra region in NUTS 3 and thus contain little statistical significance, but cause some computational problems, so we will remove it here.
+
+```{r}
+data <- data[data$geo != 'ESZZZ',]
+```
+
+Lastly we will convert **geo** and **nace_cat** into factors and rename **values** to **thousands_employed**.
 
 ```{R}
 data$geo      <- as.factor(data$geo)
 data$nace_cat <- as.factor(data$nace_cat)
 colnames(data)[3] <- 'thousands_employed'
-data
+head(data)
 ```
 
-Let's separate unaccumulated NACE categories from *TOTAL* and accumulated one.
+Let's separate unaccumulated NACE categories from *TOTAL*.
 
 ```{R}
 data.geo.sep <- droplevels(data[data$nace_cat != "TOTAL",])
-data.geo.sep
+head(data.geo.sep)
 ```
 
 ```{R}
 data.geo.acc <- droplevels(data[data$nace_cat == "TOTAL",])
-data.geo.acc
+head(data.geo.acc)
 ```
 
 ## Data Description & Graphs
 
-Let's display mean, standard deviation, median, interquartile range and skewness of whole dataset with no regard at NACE category.
+Let's display the mean, standard deviation, median, interquartile range, and skewness with regard to the *TOTAL*.
 
 ```{R warning=FALSE}
 summ <- c('mean(x)', 'sd(x)', 'skewness(x)', 'min(x)', 'pctile(x)[25]', 
@@ -91,7 +100,7 @@ sumtable(
 )
 ```
 
-We can see that data is strongly skewed to the right, that is, there are many samples with smaller than average employed population, also standard deviation and IQR are quite large (593 and 294 thousands people). It is sensible, because Spain has both city-dense areas as Catalonia and rural regions like Iberian mountains.
+We can see that data is strongly skewed to the right, that is, there are many samples with smaller than average employed population, also standard deviation and IQR are quite large (593 and 294 thousands people). It is reasonable, as Spain has both city-dense areas as Catalonia and rural regions like Iberian mountains.
 
 We will now dig into NACE category differences.
 
@@ -104,7 +113,7 @@ sumtable(
 )
 ```
 
-Visually *SMALL_BUSSINESS*, *LARGE_BUSINESS* and *PUBLIC* categories employ many more people, later this take can be tested. Additionally all categories show very similiar skewness, so it could be expected that they match.
+Visually *SMALL_BUSSINESS*, *LARGE_BUSINESS* and *PUBLIC* categories employ many more people than *FINANCE*, this observation can be tested later. Additionally all categories show very similar skewness, so it could be expected that they match.
 
 Let's Make Q-Q plots to see if those variables are normal.
 
@@ -150,11 +159,12 @@ All Q-Q plots diverge from normal quantile line at the edges and explodes in pos
 
 ## Contingency table
 
-We will create contingency table over all NUTS 3 regions and all NACE categories..
+We will create contingency table over all NUTS 3 regions and all NACE categories.
+
 ```{R}
 ct <- addmargins(xtabs(formula=thousands_employed ~ geo + nace_cat, data.geo.sep))
 print(head(ct, 2))
-print("...")
+cat("...\n")
 print(tail(ct, 3))
 ```
 
@@ -184,6 +194,7 @@ legend("topright", legend = c("SMALL_BUSINESS", "LARGE_BUSNESS"),
        )
 
 ```
+
 Distributions look almost the same, so we can say that they are the same.
 
 Statistically it leads to Pearson's Chi Squared Test. Let's formulate our hypothesis, let $X$ be a number of employed people in region in **SMALL_BUSINESS** and $Y$ be such number of people employed in **LARGE_BUSINESS**, then our hypotheses are:
@@ -192,12 +203,15 @@ $$
 H_0: \text{There is no significant association between } X \text{ and } Y\\
 H_A: \text{There is a significant association between } X \text{ and } Y
 $$
+
 ```{R warning=FALSE}
+# TODO: formulate different question. This is not suited for this test
 ct_test <- xtabs(formula=thousands_employed ~ geo + nace_cat, data.ct.test)
 print(head(ct_test, 2))
 chisq.test(ct_test)
 ```
-P-value is much less than $\alpha = 0.05$, so we fail to reject the null hypothesis. Conclusion is that there is a connection between number of people employed in **SMALL_BUSINESS** and **LARGE_BUSINESS**.
+
+P-value is much less than $\alpha = 0.05$, so we fail to reject the null hypothesis. Conclusion is that there is no relation between number of people employed in **SMALL_BUSINESS** and **LARGE_BUSINESS**.
 
 ## Tests
 
