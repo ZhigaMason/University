@@ -48,6 +48,7 @@ data[grepl("K|L|M|N", data$nace_r2),]$nace_cat       <- "FINANCE"
 data[grepl("O|P|Q|R|S|T|U", data$nace_r2),]$nace_cat <- "PUBLIC"
 data[grepl("TOTAL", data$nace_r2),]$nace_cat         <- "TOTAL"
 head(data)
+data
 ```
 
 We will aggregate all samples based on their **geo** and **nace_cat** feature, because they were split on **nace_r2** subtypes in raw datset.
@@ -163,14 +164,92 @@ We will create contingency table over all NUTS 3 regions and all NACE categories
 
 ```{R}
 ct <- addmargins(xtabs(formula=thousands_employed ~ geo + nace_cat, data.geo.sep))
-print(head(ct, 2))
+print(head(ct, 5))
 cat("...\n")
 print(tail(ct, 3))
 ```
 
-each entry in contingency table is number of thousands of people in region **geo** employed in **nace_cat** category. The last column and the last row are marginal sums, they are the sums of their respective row or column.
+Let's test if regions have the same distribution of employment. Pearson's Chi Squared Homogenity Test will assist us in that (the condition of having 5 or more expected counts in 80% of cells in large table is met).
 
-From data one can hypothesize that **SMALL_BUSINESS** and **LARGE_BUSINESS** come hand-in-hand in all regions. Let's plot histograms of those variables.
+$$
+H_0: \text{Employment does not depend on a region}\\
+H_A: \text{Employment does depend on a region}
+$$
+
+```{R warning=FALSE}
+ct_test <- xtabs(formula=thousands_employed ~ geo + nace_cat, data.geo.sep)
+print(head(ct_test, 3))
+chisq.test(ct_test)
+```
+
+p-value is much less than $\alpha = 0.05$, so we reject the null hypothesis in favor of the alternative. Conclusion is that the proportions of people employed in distinct categories are **not the same** for different regions.
+
+<!--# TODO: mosaicplot -->
+
+## Tests
+
+Let's extend our data a little before making hypothesis on it. We can use dataset about population in NUTS 3 regions to make hypotheses testing more meaningful.
+
+```{r}
+# population density by NUTS 3 regions
+pop_dens_nuts3 <- get_eurostat("demo_r_d3dens")
+pop_dens_nuts3 <- pop_dens_nuts3[(as.Date('2022-01-01') <= pop_dens_nuts3$TIME_PERIOD) & ( pop_dens_nuts3$TIME_PERIOD < as.Date('2023-01-01')),]
+pop_dens_nuts3 <- pop_dens_nuts3[grepl('ES...', pop_dens_nuts3$geo),]
+
+# area by NUTS 3 regions
+area_nuts3 <- get_eurostat("reg_area3")
+area_nuts3 <- area_nuts3[(as.Date('2022-01-01') <= area_nuts3$TIME_PERIOD) & ( area_nuts3$TIME_PERIOD < as.Date('2023-01-01')),]
+area_nuts3 <- area_nuts3[grepl('ES...', area_nuts3$geo),]
+area_nuts3 <- area_nuts3[area_nuts3$landuse == 'TOTAL',]
+
+area <- area_nuts3[, c("geo", "values")]
+pop_dens <- pop_dens_nuts3[, c("geo", "values")]
+
+# combining two together
+merged_data <- merge(pop_dens, area, by = "geo", suffixes = c("_pop_dens", "_area"))
+merged_data$product <- merged_data$values_pop_dens * merged_data$values_area
+population <- merged_data[, c("geo", "product")]
+colnames(population)[colnames(population) == "product"] <- "pop_in_thousands"
+population$pop_in_thousands <- population$pop_in_thousands / 1000
+
+# population by regions in thousands
+head(population)
+```
+
+### Existence of correlation between employment and population
+
+Let's check hypothesis:
+
+$$
+H_0: \text{Correlation between employment and population is 0 }\\
+H_A: \text{Correlation is not 0}
+$$
+
+First we can combine total employment and population in one table to predict how the test can end.
+
+```{r}
+data.corr.test = merge(data.geo.acc, population, by='geo')
+head(data.corr.test, 3)
+```
+
+It seems like 40% of the population in each region is employed. We can find pearson correlation coefficient to check the linear relation.
+
+```{r}
+cor.test(data.corr.test[, 'thousands_employed'], data.corr.test[, 'pop_in_thousands'], method='pearson', alternative = "two.sided")
+```
+
+p-value is low, so we reject the null hypothesis. Result of the test indicates almost perfect positive linear relationship and we can predict population from employment and vise versa.
+
+### **Testing if SMALL_BUSINESS** and **LARGE_BUSINESS** come hand-in-hand in all regions
+
+<!--# TODO -->
+
+```         
+wilcox.test(paired=True)
+utest
+```
+
+Let's plot histograms of those variables.
 
 ```{R}
 data.ct.test = droplevels(data.geo.sep[data.geo.sep$nace_cat %in% c('SMALL_BUSINESS', 'LARGE_BUSINESS'),])
@@ -192,28 +271,30 @@ hist(
 legend("topright", legend = c("SMALL_BUSINESS", "LARGE_BUSNESS"),
        fill = c(rgb(0.6,0,0, 0.6), rgb(0,0,0.6, 0.6))
        )
-
 ```
 
 Distributions look almost the same, so we can say that they are the same.
 
-Statistically it leads to Pearson's Chi Squared Test. Let's formulate our hypothesis, let $X$ be a number of employed people in region in **SMALL_BUSINESS** and $Y$ be such number of people employed in **LARGE_BUSINESS**, then our hypotheses are:
+Let's formulate our hypothesis. For region $Reg_i$, let $X_i$ be a number of employed people in **SMALL_BUSINESS** and $Y_i$ be a number of people employed in **LARGE_BUSINESS**, then our hypotheses are:
 
 $$
 H_0: \text{There is no significant association between } X \text{ and } Y\\
 H_A: \text{There is a significant association between } X \text{ and } Y
 $$
 
-```{R warning=FALSE}
-# TODO: formulate different question. This is not suited for this test
-ct_test <- xtabs(formula=thousands_employed ~ geo + nace_cat, data.ct.test)
-print(head(ct_test, 2))
-chisq.test(ct_test)
+```{r}
+small_business <- c(10000, 8000, 12000, 9500, 7800)
+large_business <- c(10100, 8005, 12001, 9645, 8009)
+wilcox.test(small_business, large_business, paired = TRUE)
 ```
 
-P-value is much less than $\alpha = 0.05$, so we fail to reject the null hypothesis. Conclusion is that there is no relation between number of people employed in **SMALL_BUSINESS** and **LARGE_BUSINESS**.
+### *FINANCE* employs less people than the other categories
 
-## Tests
+### withey man u test, variance test. 
+
+```{r}
+
+```
 
 ## Conclusion
 
