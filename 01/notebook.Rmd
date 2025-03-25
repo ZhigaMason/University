@@ -23,6 +23,8 @@ library(vtable)
 library(ggplot2)
 library(cowplot)
 library(e1071)
+library(tidyr)
+library(dplyr)
 ```
 
 Now we will download dataset, and filter it to contain only information about employment in Spain regions in year 2022.
@@ -48,7 +50,6 @@ data[grepl("K|L|M|N", data$nace_r2),]$nace_cat       <- "FINANCE"
 data[grepl("O|P|Q|R|S|T|U", data$nace_r2),]$nace_cat <- "PUBLIC"
 data[grepl("TOTAL", data$nace_r2),]$nace_cat         <- "TOTAL"
 head(data)
-data
 ```
 
 We will aggregate all samples based on their **geo** and **nace_cat** feature, because they were split on **nace_r2** subtypes in raw datset.
@@ -114,7 +115,7 @@ sumtable(
 )
 ```
 
-Visually *SMALL_BUSSINESS*, *LARGE_BUSINESS* and *PUBLIC* categories employ many more people than *FINANCE*, this observation can be tested later. Additionally all categories show very similar skewness, so it could be expected that they match.
+Visually *SMALL_BUSSINESS*, *LARGE_BUSINESS* and *PUBLIC* categories employ many more people than *FINANCE*. Additionally all categories show very similar skewness, so it could be expected that they match.
 
 Let's Make Q-Q plots to see if those variables are normal.
 
@@ -169,7 +170,7 @@ cat("...\n")
 print(tail(ct, 3))
 ```
 
-Let's test if regions have the same distribution of employment. Pearson's Chi Squared Homogenity Test will assist us in that (the condition of having 5 or more expected counts in 80% of cells in large table is met).
+Let's test if regions have the same distribution of employment. Pearson's Chi Squared Homogeneity Test will assist us in that (the condition of having 5 or more expected counts in 80% of cells in large table is met).
 
 $$
 H_0: \text{Employment does not depend on a region}\\
@@ -184,11 +185,9 @@ chisq.test(ct_test)
 
 p-value is much less than $\alpha = 0.05$, so we reject the null hypothesis in favor of the alternative. Conclusion is that the proportions of people employed in distinct categories are **not the same** for different regions.
 
-<!--# TODO: mosaicplot -->
-
 ## Tests
 
-Let's extend our data a little before making hypothesis on it. We can use dataset about population in NUTS 3 regions to make hypotheses testing more meaningful.
+Let's extend our data a bit before making further hypotheses by using a dataset about the population in NUTS 3 regions.
 
 ```{r}
 # population density by NUTS 3 regions
@@ -235,67 +234,114 @@ head(data.corr.test, 3)
 It seems like 40% of the population in each region is employed. We can find pearson correlation coefficient to check the linear relation.
 
 ```{r}
-cor.test(data.corr.test[, 'thousands_employed'], data.corr.test[, 'pop_in_thousands'], method='pearson', alternative = "two.sided")
+cor.test(data.corr.test$thousands_employed, data.corr.test$pop_in_thousands, method='pearson', alternative = "two.sided")
 ```
 
 p-value is low, so we reject the null hypothesis. Result of the test indicates almost perfect positive linear relationship and we can predict population from employment and vise versa.
 
-### **Testing if SMALL_BUSINESS** and **LARGE_BUSINESS** come hand-in-hand in all regions
+### **Testing if SMALL_BUSINESS** and **PUBLIC** come hand-in-hand in all regions
 
-<!--# TODO -->
+Looking at the data we can suppose that in each region employment in **SMALL_BUSINESS** is equal to the employment in **PUBLIC** in the region. This lead to the hypotheses:
 
-```         
-wilcox.test(paired=True)
-utest
+$$
+H_0: \text{Employment levels in SMALL_BUSINESS and PUBLIC are similar}\\
+H_A: \text{One category tends to have higher employment than the other}
+$$
+
+This can be tested with a paired test. But the choice of the test depends on the distribution of differences of the values. If it is normal, we can use stronger paired t-test, if it is at least symmetric, we would use non-parametric test: Wilcox signed-rank test. And if we cannot use neither of them, we would go for signed test.
+
+```{r}
+# Transforming data with NACE categories to wide format for convenient use
+data.sep.wide <- 
+  pivot_wider(data.geo.sep, names_from = nace_cat, values_from = thousands_employed)
+head(data.sep.wide, 2)
 ```
 
-Let's plot histograms of those variables.
+Let's test the normality with Shapiro-Wilk normality test:
+
+```{r}
+shapiro.test(data.sep.wide$PUBLIC - data.sep.wide$SMALL_BUSINESS)
+```
+
+Test indicates, that the differences are unlikely to be normal.
+
+Next is symmetry:
+
+```{r}
+hist(data.sep.wide$PUBLIC - data.sep.wide$SMALL_BUSINESS, main = "Histogram of Differences", xlab = "Differences", breaks = 20)
+```
+
+```{r}
+cat("Differences distribution skewness:", skewness(data.sep.wide$PUBLIC - data.sep.wide$SMALL_BUSINESS))
+```
+
+As we see the differences has non-zero skewness and thus our only option is Sign test. From the histogram we can notice that differences are mostly positive, and thus we will assume that employment in **PUBLIC** can be greater. Let's denote (**PUBLIC**, **SMALL_BUSINESS**) pairs as $(X_i, Y_i)$. Our hypotheses fitted on Sign test are:
+
+$$
+H_0: \text{The median of the $X_i - Y_i$ is 0}\\
+H_A: \text{The median of the differences is greater than 0}
+$$
+
+```{r}
+differences <- data.sep.wide$PUBLIC - data.sep.wide$SMALL_BUSINESS
+public_higher <- sum(differences > 0)
+regions_cnt <- length(differences)
+
+# Perform the Sign Test using binomial test
+binom.test(public_higher, regions_cnt, p = 0.5, alternative = "greater")
+```
+
+p-value now is not as low as in the previous tests, but still we reject null hypothesis under significance level of 5%. This means that we can expect employment in **PUBLIC** to be greater in regions.
+
+### **SMALL_BUSINESS** and LARGE_BUSINESS distribution comparison
+
+It's important to test the distributions of employment to know, for example, if workers have equal access to job opportunities across both small and large businesses. Let's plot histograms of those variables.
 
 ```{R}
-data.ct.test = droplevels(data.geo.sep[data.geo.sep$nace_cat %in% c('SMALL_BUSINESS', 'LARGE_BUSINESS'),])
+cat1 <- "SMALL_BUSINESS"
+cat2 <- "LARGE_BUSINESS"
 
+data.ct.test = droplevels(data.geo.sep[data.geo.sep$nace_cat %in% c(cat1, cat2),])
+
+breaks <- seq(
+    min(data.ct.test$thousands_employed), 
+    max(data.ct.test$thousands_employed), 
+    length.out = 40
+)
 
 hist(
-    data.ct.test[data.ct.test$nace_cat == 'SMALL_BUSINESS',]$thousands_employed,
+    data.ct.test[data.ct.test$nace_cat == cat1,]$thousands_employed,
     freq=FALSE, col=rgb(0.6,0,0, 0.6),
     main = "Histograms", xlab = "Thousands employed", ylab = "Density",
-    breaks=15
+    breaks=breaks
 )
 
 hist(
-    data.ct.test[data.ct.test$nace_cat == 'LARGE_BUSINESS',]$thousands_employed,
+    data.ct.test[data.ct.test$nace_cat == cat2,]$thousands_employed,
     freq=FALSE, col=rgb(0,0,0.6, 0.6), add=TRUE,
-    breaks=15
+    breaks=breaks
 )
 
-legend("topright", legend = c("SMALL_BUSINESS", "LARGE_BUSNESS"),
+legend("topright", legend = c(cat1, cat2),
        fill = c(rgb(0.6,0,0, 0.6), rgb(0,0,0.6, 0.6))
        )
 ```
 
-Distributions look almost the same, so we can say that they are the same.
-
-Let's formulate our hypothesis. For region $Reg_i$, let $X_i$ be a number of employed people in **SMALL_BUSINESS** and $Y_i$ be a number of people employed in **LARGE_BUSINESS**, then our hypotheses are:
+Distributions look similar. Let's formulate our hypothesis. For region let $F$ be the distribution of employed people in **SMALL_BUSINESS** and $G$ be a distribution of people employed in **LARGE_BUSINESS**, then our hypotheses are:
 
 $$
-H_0: \text{There is no significant association between } X \text{ and } Y\\
-H_A: \text{There is a significant association between } X \text{ and } Y
+H_0: F = G\\
+H_A: F \neq G
 $$
 
-```{r}
-small_business <- c(10000, 8000, 12000, 9500, 7800)
-large_business <- c(10100, 8005, 12001, 9645, 8009)
-wilcox.test(small_business, large_business, paired = TRUE)
-```
-
-### *FINANCE* employs less people than the other categories
-
-### withey man u test, variance test. 
+We will use Kolmogorov-Smirnov test, which is more suitable for comparison of the distribution shapes. Mann-Whitney U test would be more focused on comparing central tendencies.
 
 ```{r}
-
+ks.test(data.sep.wide$SMALL_BUSINESS, data.sep.wide$LARGE_BUSINESS)
 ```
+
+p-value is greater than $α=0.05$, so we fail to reject the null hypothesis and cannot conclude that the distributions are different.
 
 ## Conclusion
 
-TBA
+Our research provided valuable insights into the population of Spain, contributing to a broader understanding of employment trends in European countries. Even though our findings lack practical significance, the project was highly beneficial for study purposes, as it not only deepened our understanding of statistics but also enhanced our proficiency in the R language.
