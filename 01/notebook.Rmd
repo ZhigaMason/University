@@ -168,7 +168,7 @@ plarge <- ggplot(
 plot_grid(pfin, psmall, ppub, plarge)
 ```
 
-Individual plots follwo accumulated values shapes, but they have shfted peaks, so it resembles bell curve, so they acn be normal.
+Individual plots follow accumulated values shapes, but they have shifted peaks, so it resembles bell curve, so they can be normal.
 
 Let's Make Q-Q plots to see if those variables are normal.
 
