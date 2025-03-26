@@ -118,6 +118,7 @@ hist(
     breaks=breaks, xlim=c(0, ceiling(max(data.geo.acc$thousands_employed)/1000)*1000)
 )
 ```
+
 There are several samples on the far right, which can be thought of as outliers, most of data stay between $0$ and $1000$.
 
 We will now dig into NACE category differences.
