@@ -24,7 +24,7 @@ library(ggplot2)
 library(cowplot)
 library(e1071)
 library(tidyr)
-library(dplyr)
+library(plotrix)
 ```
 
 Now we will download dataset, and filter it to contain only information about employment in Spain regions in year 2022.
@@ -102,7 +102,23 @@ sumtable(
 )
 ```
 
-We can see that data is strongly skewed to the right, that is, there are many samples with smaller than average employed population, also standard deviation and IQR are quite large (593 and 294 thousands people). It is reasonable, as Spain has both city-dense areas as Catalonia and rural regions like Iberian mountains.
+We can see that data is strongly skewed to the right, that is, there are many samples with smaller than average employed population, also standard deviation and IQR are quite large (593 and 294 thousands people). It is reasonable, as Spain has both city-dense areas as Catalonia and rural regions like Iberian mountains. Next we will plot a histogram of those values.
+
+```{R}
+breaks <- seq(
+    min(data.geo.acc$thousands_employed), 
+    max(data.geo.acc$thousands_employed), 
+    length.out = 40
+)
+
+hist(
+    data.geo.acc$thousands_employed,
+    freq=FALSE, col=rgb(0.6,0,0, 0.6),
+    main = "Histogram of Accumulated values", xlab = "Thousands employed", ylab = "Density",
+    breaks=breaks, xlim=c(0, ceiling(max(data.geo.acc$thousands_employed)/1000)*1000)
+)
+```
+There are several samples on the far right, which can be thought of as outliers, most of data stay between $0$ and $1000$.
 
 We will now dig into NACE category differences.
 
@@ -115,7 +131,43 @@ sumtable(
 )
 ```
 
-Visually *SMALL_BUSSINESS*, *LARGE_BUSINESS* and *PUBLIC* categories employ many more people than *FINANCE*. Additionally all categories show very similar skewness, so it could be expected that they match.
+Visually *SMALL_BUSSINESS*, *LARGE_BUSINESS* and *PUBLIC* categories employ many more people than *FINANCE*. Additionally all categories show very similar skewness, so it could be expected that they match. Let us create histograms of different NACE categories.
+
+```{R}
+pfin <- ggplot(
+        data.geo.sep[data.geo.sep$nace_cat == 'FINANCE',],
+        aes(x=thousands_employed)
+    )   +
+        geom_histogram() +
+        ggtitle("FINANCE")
+
+psmall <- ggplot(
+        data.geo.sep[data.geo.sep$nace_cat == 'SMALL_BUSINESS',],
+        aes(x=thousands_employed)
+    )   +
+        geom_histogram() +
+        ggtitle("SMALL_BUSINESS")
+
+
+ppub <- ggplot(
+        data.geo.sep[data.geo.sep$nace_cat == 'PUBLIC',],
+        aes(x=thousands_employed)
+    )   +
+        geom_histogram() +
+        ggtitle("PUBLIC")
+
+
+plarge <- ggplot(
+        data.geo.sep[data.geo.sep$nace_cat == 'LARGE_BUSINESS',],
+        aes(x=thousands_employed)
+    )   +
+        geom_histogram() +
+        ggtitle("LARGE_BUSINESS")
+
+plot_grid(pfin, psmall, ppub, plarge)
+```
+
+Individual plots follwo accumulated values shapes, but they have shfted peaks, so it resembles bell curve, so they acn be normal.
 
 Let's Make Q-Q plots to see if those variables are normal.
 
