@@ -1,0 +1,22 @@
+V
++ a
++ b
++ c
++ d
++ e
++ f
+q
+A
++ rur a f
++ lul d b
+q
+E
++ a b
++ b c
++ d c
++ b d
++ e d
++ e f
+q
+S
+problem.pddl
