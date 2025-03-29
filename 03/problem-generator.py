@@ -191,11 +191,11 @@ def save_problem():
         f.write("    (:init\n")
         for agent, (start, _) in agents.items():
             f.write(f"        (is-at {agent} {start})\n")
-            f.write(f"        (occupied {start})")
+            f.write(f"        (occupied {start})\n")
         f.write("\n")
         for v, u in edges:
-            f.write(f"        (edge {v} {u})")
-            f.write(f"        (edge {u} {v})")
+            f.write(f"        (edge {v} {u})\n")
+            f.write(f"        (edge {u} {v})\n")
 
         f.write("    )\n")
         f.write("\n")

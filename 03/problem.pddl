@@ -3,14 +3,28 @@
 
     (:objects
         rur, lul - agent
-        c, d, f, b, a, e - vertex
+        a, c, e, f, d, b - vertex
     )
 
     (:init
         (is-at rur a)
-        (occupied a)        (is-at lul d)
+        (occupied a)
+        (is-at lul d)
         (occupied d)
-        (edge b c)        (edge c b)        (edge a b)        (edge b a)        (edge e d)        (edge d e)        (edge b d)        (edge d b)        (edge d c)        (edge c d)        (edge e f)        (edge f e)    )
+
+        (edge b d)
+        (edge d b)
+        (edge e d)
+        (edge d e)
+        (edge d c)
+        (edge c d)
+        (edge a b)
+        (edge b a)
+        (edge b c)
+        (edge c b)
+        (edge e f)
+        (edge f e)
+    )
 
     (:goal ( and
         (is-at rur f)
