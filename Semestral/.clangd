@@ -4,6 +4,6 @@ CompileFlags:
     - -Wall
     - -pedantic
     - -I/home/mkh-free/Univeristy/BI-ZUM/Semestral/libs/
-    - -L/home/mkh-free/Univeristy/BI-ZUM/Semestral/libs/]
+    - -I/home/mkh-free/Univeristy/BI-ZUM/Semestral/src/
   Compiler: clang++
 

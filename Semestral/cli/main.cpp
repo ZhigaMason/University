@@ -3,6 +3,7 @@
 #include <getopt.h>
 #include <string>
 #include "debug_utils.h"
+#include "Image/Image.hpp"
 
 void print_help() {
         printf(R"###(
@@ -51,7 +52,6 @@ int main(int argc, char *argv[]) {
         static constexpr char OPT_STR[] = "hf:";
 
         int c = -1, idx = 0;
-        bool set_out_file = false;
         std::string filein = "";
         std::string fileout  = "out.png";
         std::string schedule = "G&G";
@@ -69,7 +69,6 @@ int main(int argc, char *argv[]) {
                                 break;
                         case FILEOUT:
                                 fileout = optarg;
-                                set_out_file = true;
                                 break;
                         case SCHEDULER:
                                 schedule = optarg;
@@ -91,10 +90,7 @@ int main(int argc, char *argv[]) {
         }
 
         if(idx == (argc - 2)) {
-                if(set_out_file)
-                        filein = argv[idx+1];
-                else
-                        fileout = argv[idx+1];
+                filein = argv[idx+1];
         }
         else if(idx == (argc - 3)) {
                 filein = argv[idx+1];
@@ -105,7 +101,23 @@ int main(int argc, char *argv[]) {
                 return EXIT_FAILURE;
         }
 
+        #ifdef DEBUG
+        for(int i = 0; i < argc; ++i)
+                printf("%s\n", argv[i]);
+        #endif
+
         DEBUG_OUTPUT("FILEIN:  %s\n", filein.c_str());
         DEBUG_OUTPUT("FILEOUT: %s\n", fileout.c_str());
 
+        Image img(filein);
+
+        uint32_t wbgn = img.width() / 4, wend = 3 * img.width() / 4;
+        uint32_t hbgn = img.height() / 4, hend = 3 * img.height() / 4;
+
+        for(uint32_t i = wbgn; i < wend; ++i) {
+                for(uint32_t j = hbgn; j < hend; ++j)
+                        img.at(i, j) = Image::Pixel(0,0,0,255);
+        }
+
+        img.save(fileout);
 }

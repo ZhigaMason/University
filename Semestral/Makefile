@@ -1,11 +1,12 @@
 CXX      =clang++
-CXXFLAGS =-Wall -pedantic -std=c++20 -I./libs/ -O2
+CXXFLAGS =-Wall -pedantic -std=c++20 -I./libs/ -I./src/ -O2
 LD       =$(CXX)
 LDFLAGS  =$(CXXFLAGS)
 
 DEBUGFLAGS =-g -DDEBUG -O0
 
-SRC =  cli/main.cpp
+SRC =  cli/main.cpp\
+       src/Image/Image.cpp
 
 DEBUG_DIR=_debug
 
@@ -26,12 +27,6 @@ $(DEBUG_DIR)/%.o: %.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) $(DEBUGFLAGS) -c -o $@ $<
 
-deps:
-	$(CXX) -MM $(SRC) > Makefile.d
-
 clean:
 	rm *.out $(SRC:.cpp=.o)
 	rm -r $(DEBUG_DIR)
-	-rm Makefile.d
-
--include Makefile.d
