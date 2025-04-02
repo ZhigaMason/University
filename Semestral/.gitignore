@@ -33,3 +33,6 @@
 
 # debug
 _debug/
+
+# default output
+out.png
