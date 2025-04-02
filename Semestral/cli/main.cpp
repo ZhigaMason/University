@@ -111,8 +111,8 @@ int main(int argc, char *argv[]) {
 
         Image img(filein);
 
-        uint32_t wbgn = img.width() / 4, wend = 3 * img.width() / 4;
-        uint32_t hbgn = img.height() / 4, hend = 3 * img.height() / 4;
+        uint32_t wbgn = img.width / 4, wend = 3 * img.width / 4;
+        uint32_t hbgn = img.height / 3, hend = 2 * img.height / 3;
 
         for(uint32_t i = wbgn; i < wend; ++i) {
                 for(uint32_t j = hbgn; j < hend; ++j)

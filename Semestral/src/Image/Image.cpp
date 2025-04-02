@@ -6,18 +6,18 @@
 
 Image::Image(const std::string & filename) {
         int n_channels;
-        if(!(m_data = stbi_load(filename.c_str(), &m_width, &m_height, &n_channels, WORKING_CHANNELS))) {
+        if(!(data = stbi_load(filename.c_str(), &width, &height, &n_channels, WORKING_CHANNELS))) {
                 throw std::invalid_argument("Could not read file " + filename + " or allocation error occured");
         }
 }
 
 Image::Image(std::unique_ptr<uint8_t[]> data, int32_t h, int32_t w)
-        : m_data(data.get()), m_height(h), m_width(w) {
+        : data(data.get()), height(h), width(w) {
         data = nullptr;
 }
 
 Image::~Image() noexcept {
-        stbi_image_free(m_data);
+        stbi_image_free(data);
 }
 
 Image::Image(Image && oth) noexcept {
@@ -30,23 +30,19 @@ Image& Image::operator=(Image && oth) noexcept {
 }
 
 Image::Pixel & Image::at(uint32_t x, uint32_t y) {
-        return (reinterpret_cast<Pixel*>(m_data))[y * m_width + x];
+        return (reinterpret_cast<Pixel*>(data))[y * width + x];
 }
 Image::Pixel   Image::at(uint32_t x, uint32_t y) const {
-        return (reinterpret_cast<Pixel*>(m_data))[y * m_width + x];
+        return (reinterpret_cast<Pixel*>(data))[y * width + x];
 }
 
-uint32_t Image::width() const { return m_width; }
-
-uint32_t Image::height() const { return m_height; }
-
 void swap(Image & lhs, Image & rhs) noexcept {
-        std::swap(lhs.m_data, rhs.m_data);
-        std::swap(lhs.m_height, rhs.m_height);
-        std::swap(lhs.m_width, rhs.m_width);
+        std::swap(lhs.data, rhs.data);
+        std::swap(lhs.height, rhs.height);
+        std::swap(lhs.width, rhs.width);
 }
 
 void Image::save(const std::string & filename) {
-        if(!stbi_write_png(filename.c_str(), m_width, m_height, WORKING_CHANNELS, m_data, PNG_STRIDE))
+        if(!stbi_write_png(filename.c_str(), width, height, WORKING_CHANNELS, data, PNG_STRIDE))
                 throw std::invalid_argument("Encountered an error while saving file " + filename);
 }

@@ -5,8 +5,7 @@
 #include <cstdint>
 #include <memory>
 
-class Image {
-public:
+struct Image {
 
         struct Pixel{
                 uint8_t r, g, b, a;
@@ -27,15 +26,12 @@ public:
         Pixel & at(uint32_t, uint32_t);
         Pixel at(uint32_t, uint32_t) const;
 
-        uint32_t width() const;
-        uint32_t height() const;
-
         friend void swap(Image &, Image &) noexcept;
 
         void save(const std::string & filename);
-private:
-        uint8_t * m_data;
-        int32_t m_height, m_width;
+
+        uint8_t * data;
+        int32_t height, width;
 
         static constexpr int PNG_STRIDE = 0;
 };
