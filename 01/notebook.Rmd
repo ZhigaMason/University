@@ -218,9 +218,7 @@ We will create contingency table over all NUTS 3 regions and all NACE categories
 
 ```{R}
 ct <- addmargins(xtabs(formula=thousands_employed ~ geo + nace_cat, data.geo.sep))
-print(head(ct, 5))
-cat("...\n")
-print(tail(ct, 3))
+ct
 ```
 
 Let's test if regions have the same distribution of employment. Pearson's Chi Squared Homogeneity Test will assist us in that (the condition of having 5 or more expected counts in 80% of cells in large table is met).
@@ -281,16 +279,23 @@ First we can combine total employment and population in one table to predict how
 
 ```{r}
 data.corr.test = merge(data.geo.acc, population, by='geo')
-head(data.corr.test, 3)
+head(data.corr.test, 5)
 ```
 
-It seems like 40% of the population in each region is employed. We can find pearson correlation coefficient to check the linear relation.
+It seems like 40% of the population in each region is employed. If all assumptions are met, we can use Pearson correlation test to check the linear relationship. One of the assumptions is normality of both variables. Let's test it with Shapiro-Wilk test:
 
 ```{r}
-cor.test(data.corr.test$thousands_employed, data.corr.test$pop_in_thousands, method='pearson', alternative = "two.sided")
+shapiro.test(data.corr.test$thousands_employed)
+shapiro.test(data.corr.test$pop_in_thousands)
 ```
 
-p-value is low, so we reject the null hypothesis. Result of the test indicates almost perfect positive linear relationship and we can predict population from employment and vise versa.
+As we see, test rejects the null hypothesis of normality in both cases, meaning that we should use non-parametric test, which can be, for example, Spearman correlation test. It requires variables to have monotonic relationship, which holds, based on our observation.
+
+```{r}
+cor.test(data.corr.test$thousands_employed, data.corr.test$pop_in_thousands, method='spearman', alternative = "two.sided")
+```
+
+p-value is low, so we reject the null hypothesis. Result of the test also indicates almost perfect positive correlation between variables.
 
 ### **Testing if SMALL_BUSINESS** and **PUBLIC** come hand-in-hand in all regions
 
