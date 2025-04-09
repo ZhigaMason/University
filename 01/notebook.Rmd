@@ -25,6 +25,9 @@ library(cowplot)
 library(e1071)
 library(tidyr)
 library(plotrix)
+# mapSpain requires sf
+# sf in turn requires libudunits2-dev libgdal-dev libgeos-dev libproj-dev
+library(mapSpain)
 ```
 
 Now we will download dataset, and filter it to contain only information about employment in Spain regions in year 2022.
@@ -119,7 +122,31 @@ hist(
 )
 ```
 
-There are several samples on the far right, which can be thought of as outliers, most of data stay between $0$ and $1000$.
+There are several samples on the far right, which can be thought of as outliers, most of data stay between $0$ and $1000$. Let's display whole dataset over a map, so we will get a real picture.
+
+```{R warning=FALSE}
+spain.nuts3 <- esp_get_nuts(nuts_level = 3, year = 2021)
+spain.data.acc <- spain.nuts3 %>% 
+  left_join(data.geo.acc, by = c("NUTS_ID" = "geo"))
+
+ggplot(spain.data.acc) +
+    geom_sf(aes(fill = thousands_employed), color = "white") +
+    geom_sf_label(
+        aes(label = NAME_LATN),
+        size=2
+    ) +
+    scale_fill_gradient(low = "lightblue", high = "darkblue") +
+    theme_minimal() +
+    theme(
+        legend.key.height = unit(1.5, "cm"),
+        legend.key.width = unit(0.5, "cm"),
+        legend.title = element_text(size = 12)
+    ) +
+    labs(title = "Accumulated Data Across Spanish NUTS-3 Regions", fill = "1K employed") +
+    theme_minimal()
+```
+
+It is clear that Madrid and Barcelona are dominating in employment rates. They are two biggest cities in Spain with far-spread aglomearion, so they stand far apart from the other country.
 
 We will now dig into NACE category differences.
 
@@ -211,6 +238,90 @@ plot_grid(pfin, psmall, ppub, plarge)
 ```
 
 All Q-Q plots diverge from normal quantile line at the edges and explodes in positive side. We could say that those distributions are not normal, later normality can be tested by numerical methods.
+
+Let's plot Individual NACE supcategories over a map.
+
+```{R warning=FALSE}
+spain.data.geo_tmp <- spain.nuts3 %>% 
+  left_join(data.geo.sep[data.geo.sep$nace_cat == 'FINANCE',], by = c("NUTS_ID" = "geo"))
+ggplot(spain.data.geo_tmp) +
+    geom_sf(aes(fill = thousands_employed), color = "white") +
+    geom_sf_label(
+        aes(label = NAME_LATN),
+        size=2
+    ) +
+    scale_fill_gradient(low = "lightblue", high = "darkblue") +
+    theme_minimal() +
+    theme(
+        legend.key.height = unit(1.5, "cm"),
+        legend.key.width = unit(0.5, "cm"),
+        legend.title = element_text(size = 12)
+    ) +
+    labs(title = "Data Across Spanish NUTS-3 Regions in FINANCE", fill = "1K employed") +
+    theme_minimal()
+```
+
+```{R warning=FALSE}
+spain.data.geo_tmp <- spain.nuts3 %>% 
+  left_join(data.geo.sep[data.geo.sep$nace_cat == 'SMALL_BUSINESS',], by = c("NUTS_ID" = "geo"))
+ggplot(spain.data.geo_tmp) +
+    geom_sf(aes(fill = thousands_employed), color = "white") +
+    geom_sf_label(
+        aes(label = NAME_LATN),
+        size=2
+    ) +
+    scale_fill_gradient(low = "lightblue", high = "darkblue") +
+    theme_minimal() +
+    theme(
+        legend.key.height = unit(1.5, "cm"),
+        legend.key.width = unit(0.5, "cm"),
+        legend.title = element_text(size = 12)
+    ) +
+    labs(title = "Data Across Spanish NUTS-3 Regions in SMALL_BUSINESS", fill = "1K employed") +
+    theme_minimal()
+```
+
+```{R warning=FALSE}
+spain.data.geo_tmp <- spain.nuts3 %>% 
+  left_join(data.geo.sep[data.geo.sep$nace_cat == 'PUBLIC',], by = c("NUTS_ID" = "geo"))
+ggplot(spain.data.geo_tmp) +
+    geom_sf(aes(fill = thousands_employed), color = "white") +
+    geom_sf_label(
+        aes(label = NAME_LATN),
+        size=2
+    ) +
+    scale_fill_gradient(low = "lightblue", high = "darkblue") +
+    theme_minimal() +
+    theme(
+        legend.key.height = unit(1.5, "cm"),
+        legend.key.width = unit(0.5, "cm"),
+        legend.title = element_text(size = 12)
+    ) +
+    labs(title = "Data Across Spanish NUTS-3 Regions in PUBLIC", fill = "1K employed") +
+    theme_minimal()
+```
+
+```{R warning=FALSE}
+spain.data.geo_tmp <- spain.nuts3 %>% 
+  left_join(data.geo.sep[data.geo.sep$nace_cat == 'LARGE_BUSINESS',], by = c("NUTS_ID" = "geo"))
+ggplot(spain.data.geo_tmp) +
+    geom_sf(aes(fill = thousands_employed), color = "white") +
+    geom_sf_label(
+        aes(label = NAME_LATN),
+        size=2
+    ) +
+    scale_fill_gradient(low = "lightblue", high = "darkblue") +
+    theme_minimal() +
+    theme(
+        legend.key.height = unit(1.5, "cm"),
+        legend.key.width = unit(0.5, "cm"),
+        legend.title = element_text(size = 12)
+    ) +
+    labs(title = "Data Across Spanish NUTS-3 Regions in LARGE_BUSINESS", fill = "1K employed") +
+    theme_minimal()
+```
+
+All NACE supercategories behave very similiarly. Madrid and Barcelona spike in number of people employed, Valencia is the strongest in the rest of Spain.
 
 ## Contingency table
 
