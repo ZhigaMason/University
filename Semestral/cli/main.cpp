@@ -4,6 +4,7 @@
 #include <string>
 #include "debug_utils.h"
 #include "Image/Image.hpp"
+#include "SimulatedAnnealing/Schedulers/Schedulers.hpp"
 
 void print_help() {
         printf(R"###(

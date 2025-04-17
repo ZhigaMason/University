@@ -6,7 +6,9 @@ LDFLAGS  =$(CXXFLAGS)
 DEBUGFLAGS =-g -DDEBUG -O0
 
 SRC =  cli/main.cpp\
-       src/Image/Image.cpp
+       src/Image/Image.cpp\
+       src/SimulatedAnnealing/Candidate/Candidate.cpp\
+       src/SimulatedAnnealing/Schedulers/Schedulers.cpp
 
 DEBUG_DIR=_debug
 
