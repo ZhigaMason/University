@@ -1,0 +1,15 @@
+---
+title: "BI-PRS Semestral Project 2"
+authors:
+  - Oleksandr Slyvka
+  - Illia Lyhin
+  - Maksym Khavil
+output: html_document
+date: "2025-03-11"
+---
+
+# Semestral Project 2
+
+Our representative is Oleksandr Slyvka, his M-value is 6, that corresponds to scores in SAT tests, thus we will investigate its data.
+
+## Libraries & Data
