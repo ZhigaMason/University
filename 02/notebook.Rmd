@@ -217,11 +217,11 @@ summary(fit)
 
 Coefficients:
 
--   Intercept: This is the average SAT score for states (944.94)in the Low expenditure category.
+-   **Intercept**: This is the average SAT score for states (944.94) in the Low expenditure category.
 
--   ExpendCatMedium: On average, SAT scores in the Medium category are only \~11 points higher than in the Low category, but this difference **is not statistically significant**.
+-   **ExpendCatMedium**: On average, SAT scores in the Medium category are only \~11 points higher than in the Low category, but this difference **is not statistically significant**.
 
--   ExpendCatHigh: SAT scores in the High expenditure category are very slightly lower (by \~1 point) than the Low category, **and this is also not significant**.
+-   **ExpendCatHigh**: SAT scores in the High expenditure category are very slightly lower (by \~1 point) than the Low category, **and this is also not significant**.
 
 So the model suggests that total state expenditure on secondary schools has no real effect on average SAT scores. Also the model itself is poor, **Adjusted R-squared is negative**, meaning the model performs worse than a mean-only model.
 
@@ -232,4 +232,44 @@ boxplot(SAT ~ ExpendCat, data = case1201,
         col = c("lightblue", "lightgreen", "lightcoral"))
 ```
 
-## ABOBA
+## Interaction Model
+
+```{r}
+interaction_model <- lm(SAT ~ Rank * ExpendCat, data = case1201)
+summary(interaction_model)
+```
+
+Coefficients:
+
+-   **Intercept**: Baseline SAT score (–139.45) when Rank = 0 and ExpendCat = Low
+
+-   **Rank**: For Low expenditure states, each additional point in Rank increases SAT by \~13.1 points.	
+
+-   **ExpendCatMedium**: Medium-expenditure states have \~289 points higher SAT than Low-expenditure ones if Rank = 0 (intercept shift).	
+
+-   **ExpendCatHigh**: High-expenditure states have \~368 points higher SAT than Low-expenditure ones if Rank = 0.	
+
+-   **Rank:ExpendCatMedium**: The positive effect of Rank is slightly weaker (–3 pts) in Medium group compared to Low.	
+
+-   **Rank:ExpendCatHigh**: The effect of Rank is even weaker in High group (–3.94 pts compared to Low).
+
+Statistical Significance:
+
+-   **Rank** aloneis the most significant one component here.
+
+-   **ExpendCat (Medium and High)** significantly shifts the baseline SAT score up (with Rank = 0), though the intercept itself not much meaningful in isolation.
+
+-   **Interaction with High** is clearly significant, confirming that expenditure level modifies the influence of Rank on SAT.
+
+-   **Interaction with Medium** is marginally significant.
+
+**Adjusted R²** is **0.868** and **Residual standard error** is **25.77** meaning that this model gives a **better explanation** of SAT variation than linear regression with **Rank** alone.
+
+```{r}
+ggplot(case1201, aes(x = Rank, y = SAT, color = ExpendCat)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ x,se = FALSE) +
+  labs(title = "Interaction: SAT ~ Rank * ExpendCat",
+       x = "Educational Rank", y = "SAT Score")
+
+```
