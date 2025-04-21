@@ -34,6 +34,10 @@ Options:
         -r/--rect   - number of rectangles for approximation.
                         default 100
 
+        --cooldown  - saving cooldown. If set to zero, do not save until complete.
+                      Saves best result with prefix inficating number of iteration into <file> directory without extension and path.
+                        default 0
+
         --scheduler - temperature scheduler.
                         options: G&G, Geom, Lin
                         default: G&G
@@ -47,7 +51,7 @@ Options:
 )###");
 }
 
-int32_t input(int argc, char ** argv, std::string & filein, std::string & fileout, scheduler_type & sch, uint64_t & max_iter, uint16_t & n_rect, uint64_t & seed) {
+int32_t input(int argc, char ** argv, std::string & filein, std::string & fileout, scheduler_type & sch, uint64_t & max_iter, uint16_t & n_rect, uint64_t & seed, uint64_t & cooldown) {
         enum EOptions : int {
                 FLAGGED      = 0,
                 UNKNOWN      = '?',
@@ -64,6 +68,7 @@ int32_t input(int argc, char ** argv, std::string & filein, std::string & fileou
                 ITERATIONS   = 'i',
                 RECTANGLE    = 'r',
                 SEED         = 's',
+                COOLDOWN     = 1001,
         };
 
         static struct option LONG_OPTIONS[] = {
@@ -76,6 +81,7 @@ int32_t input(int argc, char ** argv, std::string & filein, std::string & fileou
                 {"iter",      required_argument, nullptr, ITERATIONS},
                 {"rect",      required_argument, nullptr, RECTANGLE},
                 {"seed",      required_argument, nullptr, SEED},
+                {"cooldown",  required_argument, nullptr, COOLDOWN},
                 {0, 0, 0, 0}
         };
 
@@ -117,6 +123,9 @@ int32_t input(int argc, char ** argv, std::string & filein, std::string & fileou
                         case SEED:
                                 seed = std::stoull(optarg);
                                 break;
+                        case COOLDOWN:
+                                cooldown = std::stoull(optarg);
+                                break;
                         case UNKNOWN:
                         default:
                                 break;
@@ -153,6 +162,7 @@ int32_t input(int argc, char ** argv, std::string & filein, std::string & fileou
         DEBUG_OUTPUT("MAX ITER: %lu\n", max_iter);
         DEBUG_OUTPUT("N RECT:   %u\n", n_rect);
         DEBUG_OUTPUT("SEED:     %lu\n", seed);
+        DEBUG_OUTPUT("COOLDOWN: %lu\n", cooldown);
         return EXIT_SUCCESS;
 }
 
@@ -162,10 +172,11 @@ int32_t main(int argc, char *argv[]) {
         scheduler_type sch;
         std::string fileout = "";
         uint64_t max_iter = 10'000;
+        uint64_t save_cooldown = 0;
         uint64_t seed = 0;
         uint16_t n_rect = 100;
 
-        int32_t code = input(argc, argv, filein, fileout, sch, max_iter, n_rect, seed);
+        int32_t code = input(argc, argv, filein, fileout, sch, max_iter, n_rect, seed, save_cooldown);
 
         if(code == EXIT_HELP)
                 return EXIT_SUCCESS;
@@ -173,7 +184,7 @@ int32_t main(int argc, char *argv[]) {
                 return code;
 
 
-        Image img_res = simulated_annealing(Image(filein), sch, max_iter, n_rect, seed);
+        Image img_res = simulated_annealing(filein, sch, max_iter, n_rect, seed, save_cooldown);
 
         if(fileout == "") {
                 uint32_t last_dir = filein.find_last_of("/");
