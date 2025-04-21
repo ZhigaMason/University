@@ -5,7 +5,7 @@ authors:
   - Illia Lyhin
   - Maksym Khavil
 output: html_document
-date: "2025-03-11"
+date: "2025-04-20"
 ---
 
 # Semestral Project 2
@@ -13,3 +13,200 @@ date: "2025-03-11"
 Our representative is Oleksandr Slyvka, his M-value is 6, that corresponds to scores in SAT tests, thus we will investigate its data.
 
 ## Libraries & Data
+
+```{r setup, include=FALSE}
+library(dplyr)
+library(vtable)
+library(ggplot2)
+library(cowplot)
+library(corrplot)
+library(e1071)
+library(tidyr)
+library(plotrix)
+
+library(Sleuth2)
+```
+
+Load the dataset.
+
+```{r}
+data("case1201")
+print(case1201)
+```
+
+## Data Description & Graphs
+
+A comprehensive excerpt from the [manual](https://cran.r-project.org/web/packages/Sleuth2/Sleuth2.pdf):\
+A data frame with 50 observations on the following 8 variables.
+
+1.  **State** US state
+
+2.  **SAT** state averages of the total SAT (verbal + quantitative) scores
+
+3.  **Takers** the percentage of the total eligible students (high school seniors) in the state who took the exam
+
+4.  **Income** the median income of families of test–takers (in hundreds of dollars)
+
+5.  **Years** the average number of years that the test–takers had formal studies in social sciences, natural sciences and humanities
+
+6.  **Public** the percentage of the test–takers who attended public secondary schools
+
+7.  **Expend** the total state expenditure on secondary schools (in hundreds of dollars per student)
+
+8.  **Rank** the median percentile ranking of the test–takers within their secondary school classes
+
+We will need a categorical variable so let's transform **Expend**:
+
+1.  **Low** – expenditure \< \$2000 per student
+
+2.  **Medium** – expenditure [\$2000, \$2500) per student
+
+3.  **High** – expenditure \>= \$2500 per student
+
+```{r}
+case1201$ExpendCat <- cut(case1201$Expend,
+                          breaks = c(-Inf, 20, 25, Inf),
+                          labels = c("Low", "Medium", "High"),
+                          right = FALSE)
+table(case1201$ExpendCat)
+
+```
+
+Let's display the summary of the whole dataset and standard deviation for numeric columns.
+
+```{r}
+summary(case1201)
+
+print("Standard deviation:")
+sapply(case1201[sapply(case1201, is.numeric)], sd, na.rm = TRUE)
+```
+
+Let's explore relationships between variables using correlation matrix:
+
+```{r}
+numeric_data <- case1201[sapply(case1201, is.numeric)]
+
+cor_matrix <- cor(numeric_data, use = "complete.obs")
+print(cor_matrix)
+
+corrplot(cor_matrix, tl.col = "black")
+```
+
+Our correlation insights might be:
+
+1.  Higher test participation is linked to lower average SAT scores.
+
+2.  States with higher income and better educational rankings and higher **Years** variable tend to have higher SAT scores.
+
+3.  Variables like Public school percentage and Expenditure per student show weak or negligible correlations with SAT scores.
+
+Let's visualize the distribution of the most relevant variables in the dataset.
+
+```{r}
+hist(case1201$SAT,
+     main = "Distribution of SAT Scores",
+     xlab = "SAT Score",
+     col = "lightblue", border = "white")
+
+hist(case1201$Takers,
+     main = "Distribution of SAT Takers",
+     xlab = "Number of Takers (%)",
+     col = "lightgreen", border = "white")
+
+hist(case1201$Income,
+     main = "Distribution of Median Income",
+     xlab = "Income ($100s)",
+     col = "lightcoral", border = "white")
+
+hist(case1201$Rank,
+     main = "Distribution of Educational Rank",
+     xlab = "Rank",
+     col = "plum", border = "white")
+
+```
+
+Let's take a quick look on scatter plots and Pearson correlation coefficient to make some assumptions about linear trends or clusters between SAT scores and other variables.
+
+```{r}
+plot(case1201$Takers, case1201$SAT,
+     main = "SAT Score X % of Test Takers",
+     xlab = "Takers (%)",
+     ylab = "SAT Score",
+     col = "darkgreen", pch = 19)
+
+plot(case1201$Income, case1201$SAT,
+     main = "SAT Score X Median Income",
+     xlab = "Income ($100s)",
+     ylab = "SAT Score",
+     col = "orangered", pch = 19)
+
+plot(case1201$Rank, case1201$SAT,
+     main = "SAT Score X Secondary School Rank",
+     xlab = "Rank",
+     ylab = "SAT Score",
+     col = "purple", pch = 19)
+
+plot(case1201$Years, case1201$SAT,
+     main = "SAT Score X Average Years of Education",
+     xlab = "Years of Education",
+     ylab = "SAT Score",
+     col = "orange", pch = 19)
+
+```
+
+Based on the plots above and strong enough positive correlation coefficient **(0.88)** we've chosen **Rank** as a regressor for the second task.
+
+## Regression Model
+
+We will compare the linear and quadratic regression models to determine which better explains the relationship between SAT and Rank.
+
+```{r}
+model_lin <- lm(SAT ~ Rank, data = case1201)
+model_quad <- lm(SAT ~ Rank + I(Rank^2), data = case1201)
+summary(model_lin)
+summary(model_quad)
+```
+
+Let's plot the regression line and curve so we have a broader picture.
+
+```{r}
+plot(case1201$Rank, case1201$SAT,
+     main = "SAT vs. Rank with Linear and Quadratic Fit",
+     xlab = "Rank", ylab = "SAT Score",
+     pch = 19, col = "gray")
+
+abline(model_lin, col = "blue", lwd = 3)
+
+x_vals <- seq(min(case1201$Rank), max(case1201$Rank), length.out = 100)
+y_vals_quad <- predict(model_quad, newdata = data.frame(Rank = x_vals))
+lines(x_vals, y_vals_quad, col = "red", lwd = 3)
+
+legend("bottomright",
+       legend = c("Linear Fit", "Quadratic Fit"),
+       col = c("blue", "red"), lwd = 2)
+```
+
+Now we have to choose which model to use. **Linear Model** is great, mainly because it's interpretation is very clear: *for each 1-point increase in Rank, the SAT score increases by \~9.56 points*. Despite the fact that **Quadratic Model** has a slightly better fit (Adjusted R² = 0.779 vs. 0.769) it is hardly worth the effort because coefficients are harder to interpret. The linear term is not statistically significant (p = 0.1919), and the squared term is marginally significant (p = 0.0835), meaning added complexity doesn’t yield major gains.
+
+So we will choose **Linear Model**. Rank is a strong linear predictor of SAT scores, that explains most of the variability and there’s no clear evidence that a quadratic form adds real value.
+
+## ANOVA
+
+For analysis of variance the **ExpendCat** will be used as categorical regressor.
+
+```{r}
+aov(SAT ~ ExpendCat, data = case1201)
+```
+
+```{r}
+anova(aov(SAT ~ ExpendCat, data = case1201))
+```
+
+The ANOVA test shows that **ExpendCat** does not significantly affect SAT scores. The **p-value** is much greater than 0.05, thus result is not statistically significant and we fail to reject the null hypothesis. SAT scores do not differ meaningfully between low, medium, and high-expenditure groups. #TODO doplnit maybe?
+
+```{r}
+boxplot(SAT ~ ExpendCat, data = case1201,
+        main = "SAT Scores by Expenditure Category",
+        xlab = "Expenditure Category", ylab = "SAT Score",
+        col = c("lightblue", "lightgreen", "lightcoral"))
+```
