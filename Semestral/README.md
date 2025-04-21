@@ -5,10 +5,11 @@
 - [x] Rewrite mutation schema
 - [x] Add seeding
 - [x] Add better default names
+- [x] Rewrite RGBA to RGB
 - [ ] Add multithreading
 - [ ] Add color sampling
     - [ ] KMeans
     - [ ] Random
-- [ ] Rewrite saving cooldown
-    - [ ] period saver
+- [~] Rewrite saving cooldown
+    - [x] period saver
     - [ ] sigterm catcher

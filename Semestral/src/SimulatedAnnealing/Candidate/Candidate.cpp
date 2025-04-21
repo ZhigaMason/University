@@ -10,7 +10,7 @@ Candidate::Candidate(const Image &img, uint16_t n_rect, uint64_t seed)
       pixels(img.width, img.height), generator(seed) {
         std::uniform_int_distribution<uint16_t> dist_x(0, w-1);
         std::uniform_int_distribution<uint16_t> dist_y(0, h-1);
-        std::uniform_int_distribution<uint32_t> dist_pxl(0, UINT32_MAX >> 8);
+        std::uniform_int_distribution<uint32_t> dist_pxl(0, 0xFF'FF'FF);
 
         for(uint16_t i = 0; i < n_rect; ++i) {
                 uint16_t x_min = dist_x(generator);
@@ -19,7 +19,7 @@ Candidate::Candidate(const Image &img, uint16_t n_rect, uint64_t seed)
                 std::uniform_int_distribution<uint16_t> dist_ym(y_min, h-1);
                 uint16_t x_max = dist_xm(generator);
                 uint16_t y_max = dist_ym(generator);
-                Rect r(x_min, y_min, x_max, y_max, (dist_pxl(generator) << 8) | 0xFF);
+                Rect r(x_min, y_min, x_max, y_max, dist_pxl(generator));
                 DEBUG_OUTPUT("xmin=%u, ymin=%u, xmax=%u, ymax=%u\n", x_min, y_min, x_max, y_max);
                 rects.push_back(r);
                 rect_idx.emplace(r, rects.size() - 1);
@@ -76,8 +76,8 @@ std::pair<Rect, Candidate::EMutation> Candidate::mutate(const Rect & src) {
 
         switch(val) {
                 case COLOR: {
-                        std::uniform_int_distribution<uint32_t> distribution(0, UINT32_MAX >> 8);
-                        dst.pxl = (distribution(generator) << 8) | 0xFF;
+                        std::uniform_int_distribution<uint32_t> distribution(0, 0xFF'FF'FF);
+                        dst.pxl = distribution(generator);
                         break;
                 }
                 case XMIN: {
@@ -209,7 +209,7 @@ void Candidate::draw_rect(const Rect & r) {
 }
 
 Image::Pixel Candidate::mix_colors(const std::unordered_map<Image::Pixel, uint16_t> & pxls) {
-        if(pxls.empty()) return 0xff;
+        if(pxls.empty()) return 0;
         uint32_t r=0, g=0, b=0, tcnt =0;
 
         for(const auto & [pxl, cnt] : pxls) {
@@ -218,11 +218,11 @@ Image::Pixel Candidate::mix_colors(const std::unordered_map<Image::Pixel, uint16
                 g += pxl.g * cnt;
                 b += pxl.b * cnt;
         }
-        if(tcnt == 0) return 0xFF;
+        if(tcnt == 0) return 0;
         r /= tcnt;
         g /= tcnt;
         b /= tcnt;
-        return Image::Pixel(r, g, b, 0xFF);
+        return Image::Pixel(r, g, b);
 }
 
 double Candidate::compute_sq_error(Image::Pixel lhs, Image::Pixel rhs) {

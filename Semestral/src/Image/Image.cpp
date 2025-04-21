@@ -4,11 +4,11 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
-Image::Pixel::Pixel(uint8_t r, uint8_t g, uint8_t b, uint8_t a)
-    : r(r), g(g), b(b), a(a) {}
+Image::Pixel::Pixel(uint8_t r, uint8_t g, uint8_t b)
+    : r(r), g(g), b(b) {}
 
 Image::Pixel::Pixel(uint32_t val)
-    : r(val >> 24), g(val >> 16), b(val >> 8), a(val) {}
+    : r(val >> 16), g(val >> 8), b(val) {}
 
 Image::Image(const std::string & filename) {
         int n_channels;
