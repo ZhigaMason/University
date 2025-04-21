@@ -95,7 +95,7 @@ numeric_data <- case1201[sapply(case1201, is.numeric)]
 cor_matrix <- cor(numeric_data, use = "complete.obs")
 print(cor_matrix)
 
-corrplot(cor_matrix, tl.col = "black")
+corrplot(cor_matrix, addCoef.col = "goldenrod4", tl.col = "black")
 ```
 
 Our correlation insights might be:
@@ -272,4 +272,11 @@ ggplot(case1201, aes(x = Rank, y = SAT, color = ExpendCat)) +
   labs(title = "Interaction: SAT ~ Rank * ExpendCat",
        x = "Educational Rank", y = "SAT Score")
 
+```
+
+## Model with 3 Regressors
+
+```{r}
+full_model <- lm(SAT ~ Rank * ExpendCat *Years, data = case1201)
+summary(full_model)
 ```
