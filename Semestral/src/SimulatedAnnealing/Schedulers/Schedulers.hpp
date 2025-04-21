@@ -14,10 +14,8 @@ extern scheduler_factory_type GermanNGermanFactory;
 extern scheduler_factory_type GeometricFactory;
 extern scheduler_factory_type LinearFactory;
 
-const std::unordered_map<std::string, scheduler_factory_type> schedulerFactories = {
-        {"G&G",  GermanNGermanFactory},
-        {"Geom", GeometricFactory},
-        {"Lin",  LinearFactory}
-};
+extern const std::unordered_map<std::string, scheduler_factory_type> scheduler_factories;
+
+extern const std::unordered_map<std::string, double> default_factories_parameters;
 
 #endif//_HPP_SCHEDULER_SA_192839012830182038120380080

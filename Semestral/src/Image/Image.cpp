@@ -8,8 +8,7 @@ Image::Pixel::Pixel(uint8_t r, uint8_t g, uint8_t b, uint8_t a)
     : r(r), g(g), b(b), a(a) {}
 
 Image::Pixel::Pixel(uint32_t val)
-    : r(val & 0xff'00'00'00), g(val & 0x00'ff'00'00), b(val & 0x00'00'ff'00),
-      a(val & 0x00'00'00'ff) {}
+    : r(val >> 24), g(val >> 16), b(val >> 8), a(val) {}
 
 Image::Image(const std::string & filename) {
         int n_channels;
@@ -18,13 +17,14 @@ Image::Image(const std::string & filename) {
         }
 }
 
-Image::Image(std::unique_ptr<uint8_t[]> data, int32_t h, int32_t w)
-        : data(data.get()), height(h), width(w) {
-        data = nullptr;
-}
+Image::Image(uint8_t * data, int32_t h, int32_t w)
+        : data(data), height(h), width(w) {}
+
+Image::Image() : Image(nullptr, 0, 0) {};
 
 Image::~Image() noexcept {
-        stbi_image_free(data);
+        if(data)
+                stbi_image_free(data);
 }
 
 Image::Image(Image && oth) noexcept {

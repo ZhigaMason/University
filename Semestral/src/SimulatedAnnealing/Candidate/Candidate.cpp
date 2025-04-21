@@ -1,50 +1,63 @@
 #include "Candidate.hpp"
+#include "debug_utils.h"
+#include <cassert>
 #include <climits>
 #include <random>
+#include "stb_image.h"
 
-template <typename T>
-Candidate::Array2D<T>::Array2D(uint32_t w_, uint32_t h_)
-        :  data(new T[w_ * h_]), w(w_), h(h_) {}
+Candidate::Candidate(const Image &img, uint16_t n_rect)
+    :  MSE(0), img(img), w(img.width), h(img.height),local_mses(img.width, img.height),
+      pixels(img.width, img.height) {
+        static std::mt19937 generator;
+        std::uniform_int_distribution<uint16_t> dist_x(0, w-1);
+        std::uniform_int_distribution<uint16_t> dist_y(0, h-1);
+        std::uniform_int_distribution<uint32_t> dist_pxl(0, UINT32_MAX >> 8);
 
-template <typename T>
-Candidate::Array2D<T>:: Array2D(const Array2D & oth) : Array2D(oth.w, oth.h){
-        for(uint32_t i = 0; i < w*h; ++i)
-                data[i] = oth.data[i];
+        for(uint16_t i = 0; i < n_rect; ++i) {
+                uint16_t x_min = dist_x(generator);
+                uint16_t y_min = dist_y(generator);
+                std::uniform_int_distribution<uint16_t> dist_xm(x_min, w-1);
+                std::uniform_int_distribution<uint16_t> dist_ym(y_min, h-1);
+                uint16_t x_max = dist_xm(generator);
+                uint16_t y_max = dist_ym(generator);
+                Rect r(x_min, y_min, x_max, y_max, (dist_pxl(generator) << 8) | 0xFF);
+                DEBUG_OUTPUT("xmin=%u, ymin=%u, xmax=%u, ymax=%u\n", x_min, y_min, x_max, y_max);
+                rects.push_back(r);
+                rect_idx.emplace(r, rects.size() - 1);
+
+                for(uint16_t j = y_min; j < y_max; ++j) {
+                        for(uint16_t k = x_min; k < x_max; ++k) {
+                                std::unordered_map<Image::Pixel, uint16_t> & pxls = pixels.at(k, j);
+                                pxls[r.pxl] += 1;
+                        }
+                }
+        }
+
+        for(uint16_t j = 0; j < h; ++j) {
+                for(uint16_t i = 0; i < w; ++i) {
+                        local_mses.at(i, j) = compute_sq_error(img.at(i,j), mix_colors(pixels.at(i, j)));
+                        MSE += local_mses.at(i, j);
+                }
+        }
 }
-
-template <typename T>
-Candidate::Array2D<T>::~Array2D<T>() noexcept {
-        delete [] data;
-}
-
-template <typename T>
-Candidate::Array2D<T> & Candidate::Array2D<T>::operator=(Array2D<T> oth) {
-        std::swap(*this, oth);
-        return *this;
-}
-
-template <typename T>
-T & Candidate::Array2D<T>::at(uint32_t x, uint32_t y) {
-        return data[y * w + x];
-}
-
-template <typename T>
-const T & Candidate::Array2D<T>::at(uint32_t x, uint32_t y) const {
-        return data[y * w + x];
-}
-
-Candidate::Candidate(const Image &img)
-    : img(img), w(img.width), h(img.height), local_mses(img.width, img.height),
-      pixels(img.width, img.height) {}
 
 void Candidate::copy_from(const Candidate & oth) {
-        h = oth.w;
-        h = oth.h;
+        assert(oth.h == h);
+        assert(oth.w == w);
         MSE = oth.MSE;
-        local_mses = oth.local_mses;
-        pixels = oth.pixels;
+        DEBUG_OUTPUT("cccc\n");
         rects = oth.rects;
+        DEBUG_OUTPUT("xxxx\n");
         rect_idx = oth.rect_idx;
+
+        DEBUG_OUTPUT("aaaa\n");
+        for(uint32_t i = 0; i < w * h; ++i) {
+                local_mses.data[i] = oth.local_mses.data[i];
+                pixels.data[i] = oth.pixels.data[i];
+        }
+        DEBUG_OUTPUT("bbbb\n");
+
+        DEBUG_OUTPUT("Finished copying\n");
 }
 
 Rect Candidate::randomRect() const {
@@ -90,7 +103,9 @@ Rect Candidate::mutate(const Rect & src) {
                 }
         }
 
-        changeRect(src, dst);
+        //DEBUG_OUTPUT("PRECHANGE MSE:  %lf\n", MSE);
+        assert(changeRect(src, dst));
+        //DEBUG_OUTPUT("POSTCHANGE MSE: %lf\n", MSE);
         return dst;
 }
 
@@ -108,15 +123,18 @@ bool Candidate::changeRect(const Rect & src, const Rect & dst) {
         clean_rect(src);
         draw_rect(dst);
         rects[idx] = dst;
+        rect_idx.erase(src);
+        rect_idx.emplace(dst, idx);
         return true;
 }
 
 void Candidate::clean_rect(const Rect & r) {
-        for(uint16_t i = r.x_min; i <= r.x_max; ++i) {
-                for(uint16_t j = r.y_min; j <= r.y_max; ++j) {
-                        std::unordered_multiset<Image::Pixel> & pxls = pixels.at(i, j);
+        //DEBUG_OUTPUT("CLEANING RECT (%u, %u) - (%u, %u)\n", r.x_min, r.y_min, r.x_max, r.y_max);
+        for(uint16_t j = r.y_min; j <= r.y_max; ++j) {
+                for(uint16_t i = r.x_min; i <= r.x_max; ++i) {
+                        std::unordered_map<Image::Pixel, uint16_t> & pxls = pixels.at(i, j);
                         MSE -= local_mses.at(i, j);
-                        pxls.erase(pxls.find(r.pxl));
+                        pxls[r.pxl] -= 1;
 
                         Image::Pixel new_mixture = mix_colors(pxls);
                         local_mses.at(i, j) = compute_sq_error(new_mixture, img.at(i, j));
@@ -126,11 +144,12 @@ void Candidate::clean_rect(const Rect & r) {
 }
 
 void Candidate::draw_rect(const Rect & r) {
-        for(uint16_t i = r.x_min; i <= r.x_max; ++i) {
-                for(uint16_t j = r.y_min; j <= r.y_max; ++j) {
-                        std::unordered_multiset<Image::Pixel> & pxls = pixels.at(i, j);
+        //DEBUG_OUTPUT("DRAWING RECT (%u, %u) - (%u, %u)\n", r.x_min, r.y_min, r.x_max, r.y_max);
+        for(uint16_t j = r.y_min; j <= r.y_max; ++j) {
+                for(uint16_t i = r.x_min; i <= r.x_max; ++i) {
+                        std::unordered_map<Image::Pixel, uint16_t> & pxls = pixels.at(i, j);
                         MSE -= local_mses.at(i, j);
-                        pxls.insert(r.pxl);
+                        pxls[r.pxl] += 1;
 
                         Image::Pixel new_mixture = mix_colors(pxls);
                         local_mses.at(i, j) = compute_sq_error(new_mixture, img.at(i, j));
@@ -140,25 +159,35 @@ void Candidate::draw_rect(const Rect & r) {
 
 }
 
-Image::Pixel Candidate::mix_colors(const std::unordered_multiset<Image::Pixel> & pxls) {
-        Image::Pixel base = 0x00'00'00'01; // R=0, G=0, B=0, A=1
+Image::Pixel Candidate::mix_colors(const std::unordered_map<Image::Pixel, uint16_t> & pxls) {
+        if(pxls.empty()) return 0xff;
+        uint32_t r=0, g=0, b=0, tcnt =0;
 
-        for(Image::Pixel pxl : pxls) {
-                uint32_t alpha = base.a + pxl.a - base.a * pxl.a;
-                if(alpha == 0)
-                        base = 0; // transperant = black
-
-                uint32_t red   = (pxl.r * pxl.a + base.r * base.a * (1 - pxl.a)) / alpha;
-                uint32_t blue  = (pxl.b * pxl.a + base.b * base.a * (1 - pxl.a)) / alpha;
-                uint32_t green = (pxl.g * pxl.a + base.g * base.a * (1 - pxl.a)) / alpha;
-                base = Image::Pixel(red, blue, green, alpha);
+        for(const auto & [pxl, cnt] : pxls) {
+                tcnt += cnt;
+                r += pxl.r * cnt;
+                g += pxl.g * cnt;
+                b += pxl.b * cnt;
         }
-        return base;
+        if(tcnt == 0) return 0xFF;
+        r /= tcnt;
+        g /= tcnt;
+        b /= tcnt;
+        return Image::Pixel(r, g, b, 0xFF);
 }
 
 double Candidate::compute_sq_error(Image::Pixel lhs, Image::Pixel rhs) {
         return (lhs.r - rhs.r) * (lhs.r - rhs.r) +
                (lhs.g - rhs.g) * (lhs.g - rhs.g) +
-               (lhs.b - rhs.b) * (lhs.b - rhs.b) +
-               (lhs.a - rhs.a) * (lhs.a - rhs.a);
+               (lhs.b - rhs.b) * (lhs.b - rhs.b);
+}
+
+Image Candidate::image() const {
+        Image::Pixel * img_data = reinterpret_cast<Image::Pixel * >(malloc(w*h * sizeof(Image::Pixel)));
+        for(uint16_t j = 0; j < h; ++j) {
+                for(uint16_t i = 0; i < w; ++i) {
+                        img_data[i + j * w] = mix_colors(pixels.at(i, j));
+                }
+        }
+        return Image(reinterpret_cast<uint8_t*>(img_data), h, w);
 }

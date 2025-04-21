@@ -7,6 +7,7 @@ DEBUGFLAGS =-g -DDEBUG -O0
 
 SRC =  cli/main.cpp\
        src/Image/Image.cpp\
+       src/SimulatedAnnealing/Algorithm/Algorithm.cpp\
        src/SimulatedAnnealing/Candidate/Candidate.cpp\
        src/SimulatedAnnealing/Schedulers/Schedulers.cpp
 
@@ -30,5 +31,5 @@ $(DEBUG_DIR)/%.o: %.cpp
 	$(CXX) $(CXXFLAGS) $(DEBUGFLAGS) -c -o $@ $<
 
 clean:
-	rm *.out $(SRC:.cpp=.o)
-	rm -r $(DEBUG_DIR)
+	-rm *.out $(SRC:.cpp=.o)
+	-rm -r $(DEBUG_DIR)

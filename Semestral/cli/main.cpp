@@ -1,11 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <getopt.h>
+#include <math.h>
 #include <string>
 #include "debug_utils.h"
 #include "Image/Image.hpp"
 #include "SimulatedAnnealing/Schedulers/Schedulers.hpp"
+#include "SimulatedAnnealing/Algorithm/Algorithm.hpp"
 
+constexpr int32_t EXIT_HELP = 100;
 void print_help() {
         printf(R"###(
 Usage:
@@ -14,31 +17,47 @@ Usage:
 Options:
         -h/--help   - display this help menu
 
-        -f/--file   - specify input filename
+        -f/--file   - input filename
 
-        -o/--output - specify output filename.
+        -o/--output - output filename.
                       default: out.png
+        -t/--temp   - starting temperature.
+                        default: 1000.0
 
-        --scheduler - specify temperature scheduler.
-                      default: G&G
+        -i/--iter   - maximal iterations.
+                        default 10'000
+        -r/--rect   - number of rectangles for approximation.
+                        default 100
 
-        -p/--params - specify parameters
+        --scheduler - temperature scheduler.
+                        options: G&G, Geom, Lin
+                        default: G&G
+
+        -p/--params - parameters of schedulers.
+                        options and defaults:
+                                G&G - c=1
+                                Geom - multiplier=0.995
+                                Lin - slope=-0.01
 
 )###");
 }
 
-int main(int argc, char *argv[]) {
-
+int32_t input(int argc, char ** argv, Image & filein_img, std::string & fileout, scheduler_type & sch, uint64_t & max_iter, uint16_t & n_rect) {
         enum EOptions : int {
                 FLAGGED      = 0,
                 UNKNOWN      = '?',
                 NOARGS       = -1,
 
+                OPTARG       = ':',
+
                 HELP         = 'h',
                 FILEIN       = 'f',
                 FILEOUT      = 'o',
                 SCHEDULER    = 1000,
-                PARAMS       = 'p'
+                PARAMS       = 'p',
+                TEMPERATURE  = 't',
+                ITERATIONS   = 'i',
+                RECTANGLE    = 'r'
         };
 
         static struct option LONG_OPTIONS[] = {
@@ -47,35 +66,49 @@ int main(int argc, char *argv[]) {
                 {"output",    required_argument, nullptr, FILEOUT},
                 {"scheduler", required_argument, nullptr, SCHEDULER},
                 {"params",    required_argument, nullptr, PARAMS},
+                {"temp",      required_argument, nullptr, TEMPERATURE},
+                {"iter",      required_argument, nullptr, ITERATIONS},
+                {"rect",      required_argument, nullptr, RECTANGLE},
                 {0, 0, 0, 0}
         };
 
-        static constexpr char OPT_STR[] = "hf:";
+        static constexpr char OPT_STR[] = "hf:o:p:t:i:r:";
 
-        int c = -1, idx = 0;
+        int32_t c = -1;
         std::string filein = "";
-        std::string fileout  = "out.png";
-        std::string schedule = "G&G";
-        std::string params   = "";
+        std::string scheduler = "G&G";
+        double params        = NAN;
+        double temperature   = 1000;
 
-        while((c = getopt_long(argc, argv, OPT_STR, LONG_OPTIONS, &idx)) != NOARGS) {
+        while((c = getopt_long(argc, argv, OPT_STR, LONG_OPTIONS, nullptr)) != NOARGS) {
                 switch(c) {
                         case FLAGGED:
                                 break;
                         case HELP:
                                 print_help();
-                                return EXIT_SUCCESS;
+                                return EXIT_HELP;
                         case FILEIN:
+                                DEBUG_OUTPUT("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBB\n");
                                 filein = optarg;
                                 break;
                         case FILEOUT:
                                 fileout = optarg;
                                 break;
                         case SCHEDULER:
-                                schedule = optarg;
+                                scheduler = optarg;
                                 break;
                         case PARAMS:
-                                params = optarg;
+                                params = std::stod(optarg);
+                                break;
+                        case TEMPERATURE:
+                                temperature = std::stod(optarg);
+                                break;
+                        case ITERATIONS:
+                                DEBUG_OUTPUT("AAAAAAAAAAAAAAAAAAAAAAAAaa\n");
+                                max_iter = std::stoull(optarg);
+                                break;
+                        case RECTANGLE:
+                                n_rect = std::stoul(optarg);
                                 break;
                         case UNKNOWN:
                         default:
@@ -83,42 +116,57 @@ int main(int argc, char *argv[]) {
                 };
         }
 
-        DEBUG_OUTPUT("ARGC: %d, idx: %d\n", argc, idx);
+        DEBUG_OUTPUT("ARGC: %d\n", argc);
 
-        if(idx == (argc - 1) && filein.empty()) {
+        if(filein == "") {
                 printf("Provide file with %s <filename> or %s -f/--file <filename>\n", argv[0], argv[0]);
                 return EXIT_FAILURE;
         }
 
-        if(idx == (argc - 2)) {
-                filein = argv[idx+1];
-        }
-        else if(idx == (argc - 3)) {
-                filein = argv[idx+1];
-                fileout = argv[idx+2];
-        }
-        else {
-                printf("Too many positional arguments provided: expected 1, obtained %d\n", argc - idx - 1);
+        if(!scheduler_factories.contains(scheduler)) {
+                printf("Scheduler \"%s\" is not known. Refer to %s -h for help", scheduler.c_str(), argv[0]);
                 return EXIT_FAILURE;
         }
+
+        if(params == NAN) {
+                params = default_factories_parameters.at(scheduler);
+        }
+
+        DEBUG_OUTPUT("VALID INPUT\n");
+
+        sch = scheduler_factories.at(scheduler)(params, temperature);
+        filein_img = Image(filein);
+
 
         #ifdef DEBUG
         for(int i = 0; i < argc; ++i)
                 printf("%s\n", argv[i]);
         #endif
 
-        DEBUG_OUTPUT("FILEIN:  %s\n", filein.c_str());
-        DEBUG_OUTPUT("FILEOUT: %s\n", fileout.c_str());
+        DEBUG_OUTPUT("FILEIN:   %s\n", filein.c_str());
+        DEBUG_OUTPUT("FILEOUT:  %s\n", fileout.c_str());
+        DEBUG_OUTPUT("MAX ITER: %lu\n", max_iter);
+        DEBUG_OUTPUT("N RECT:   %u\n", n_rect);
+        return EXIT_SUCCESS;
+}
 
-        Image img(filein);
+int32_t main(int argc, char *argv[]) {
 
-        uint32_t wbgn = img.width / 4, wend = 3 * img.width / 4;
-        uint32_t hbgn = img.height / 3, hend = 2 * img.height / 3;
+        Image img;
+        scheduler_type sch;
+        std::string fileout = "out.png";
+        uint64_t max_iter = 10'000;
+        uint16_t n_rect = 100;
 
-        for(uint32_t i = wbgn; i < wend; ++i) {
-                for(uint32_t j = hbgn; j < hend; ++j)
-                        img.at(i, j) = Image::Pixel(0,0,0,255);
-        }
+        int32_t code = input(argc, argv, img, fileout, sch, max_iter, n_rect);
 
-        img.save(fileout);
+        if(code == EXIT_HELP)
+                return EXIT_SUCCESS;
+        if(code != EXIT_SUCCESS)
+                return code;
+
+
+        Image img_res = simulated_annealing(img, sch, max_iter, n_rect);
+
+        img_res.save(fileout);
 }

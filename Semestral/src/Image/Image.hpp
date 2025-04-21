@@ -5,10 +5,12 @@
 #include <cstdint>
 #include <memory>
 
+#include "stb_image.h"
+
 struct Image {
 
         struct Pixel{
-                uint8_t r=0, g=0, b=0,  a=0;
+                uint8_t r=0, g=0, b=0, a=0;
                 Pixel(uint8_t r, uint8_t g, uint8_t b, uint8_t a);
                 Pixel(uint32_t val = 0);
 
@@ -18,7 +20,9 @@ struct Image {
         static constexpr int WORKING_CHANNELS = 4;
 
         explicit Image(const std::string & filename);
-        Image(std::unique_ptr<uint8_t[]> data, int32_t h, int32_t w);
+        Image(uint8_t * data, int32_t h, int32_t w);
+
+        Image();
 
         ~Image() noexcept;
 
@@ -44,7 +48,7 @@ namespace std {
     template <>
     struct hash<Image::Pixel> {
         uint64_t operator()(Image::Pixel pxl) const {
-            return *reinterpret_cast<uint32_t*>(&pxl);
+            return (pxl.r << 16) ^ (pxl.g << 8) ^ (pxl.b);
         }
     };
 }

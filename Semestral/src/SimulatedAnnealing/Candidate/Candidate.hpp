@@ -2,9 +2,9 @@
 #define _HPP_CANDIDATE
 
 #include "Image/Image.hpp"
+#include "debug_utils.h"
 
 #include <vector>
-#include <unordered_set>
 #include <unordered_map>
 
 namespace SA_utils{
@@ -30,7 +30,7 @@ namespace std {
 
 struct Candidate {
 
-        Candidate(const Image & img);
+        Candidate(const Image & img, uint16_t n_rect);
 
         ~Candidate() noexcept = default;
         Candidate(const Candidate & oth) = default;
@@ -49,9 +49,10 @@ struct Candidate {
         // returns false if src does not exist in this candidate
         bool changeRect(const SA_utils::Rect & src, const SA_utils::Rect & dst);
 
-private:
+        Image image() const;
 
-        using color_data_t=uint32_t;
+        double MSE;
+private:
 
         template<typename T>
         struct Array2D {
@@ -70,19 +71,52 @@ private:
                 uint32_t w, h;
         };
 
+        using color_data_t=uint32_t;
+
         const Image & img;
         uint32_t w, h;
-        double MSE;
         Array2D<double>   local_mses;
-        Array2D<std::unordered_multiset<Image::Pixel>>    pixels;
+        Array2D<std::unordered_map<Image::Pixel, uint16_t>>    pixels;
         std::vector<SA_utils::Rect> rects;
         std::unordered_map<Rect, uint16_t> rect_idx;
 
         void clean_rect(const Rect &);
         void draw_rect(const Rect &);
-        static Image::Pixel mix_colors(const std::unordered_multiset<Image::Pixel> &);
+        static Image::Pixel mix_colors(const std::unordered_map<Image::Pixel, uint16_t> &);
         static double compute_sq_error(Image::Pixel lhs, Image::Pixel rhs);
 };
 
-#endif//_HPP_CANDIDATE
+template <typename T>
+Candidate::Array2D<T>::Array2D(uint32_t w_, uint32_t h_)
+        :  data(new T[w_ * h_]), w(w_), h(h_) {}
 
+template <typename T>
+Candidate::Array2D<T>:: Array2D(const Array2D & oth) : Array2D(oth.w, oth.h){
+        DEBUG_OUTPUT("COPYING ARRAY, w=%u, h=%u\n", w, h);
+        for(uint32_t i = 0; i < w*h; ++i) {
+                data[i] = oth.data[i];
+        }
+}
+
+template <typename T>
+Candidate::Array2D<T>::~Array2D<T>() noexcept {
+        delete [] data;
+}
+
+template <typename T>
+Candidate::Array2D<T> & Candidate::Array2D<T>::operator=(Array2D<T> oth) {
+        std::swap(*this, oth);
+        return *this;
+}
+
+template <typename T>
+T & Candidate::Array2D<T>::at(uint32_t x, uint32_t y) {
+        return data[y * w + x];
+}
+
+template <typename T>
+const T & Candidate::Array2D<T>::at(uint32_t x, uint32_t y) const {
+        return data[y * w + x];
+}
+
+#endif//_HPP_CANDIDATE
