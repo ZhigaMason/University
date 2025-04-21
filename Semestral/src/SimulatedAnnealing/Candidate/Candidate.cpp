@@ -5,10 +5,9 @@
 #include <random>
 #include "stb_image.h"
 
-Candidate::Candidate(const Image &img, uint16_t n_rect)
+Candidate::Candidate(const Image &img, uint16_t n_rect, uint64_t seed)
     :  MSE(0), img(img), w(img.width), h(img.height),local_mses(img.width, img.height),
-      pixels(img.width, img.height) {
-        static std::mt19937 generator;
+      pixels(img.width, img.height), generator(seed) {
         std::uniform_int_distribution<uint16_t> dist_x(0, w-1);
         std::uniform_int_distribution<uint16_t> dist_y(0, h-1);
         std::uniform_int_distribution<uint32_t> dist_pxl(0, UINT32_MAX >> 8);
@@ -61,7 +60,6 @@ void Candidate::copy_from(const Candidate & oth) {
 }
 
 Rect Candidate::randomRect() const {
-        static std::mt19937 generator;
         std::uniform_int_distribution<uint16_t> distribution(0, rects.size() - 1);
 
         return rects[distribution(generator)];
@@ -70,7 +68,6 @@ Rect Candidate::randomRect() const {
 // Mutates one Rect, calculates new MSE and returns new Rect
 std::pair<Rect, Candidate::EMutation> Candidate::mutate(const Rect & src) {
 
-        static std::mt19937 generator;
         std::discrete_distribution<uint8_t> distribution_mutations({1,1,1,1,1});
 
         EMutation val = EMutation(distribution_mutations(generator));

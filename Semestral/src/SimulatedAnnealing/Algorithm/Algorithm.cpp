@@ -3,13 +3,13 @@
 #include "SimulatedAnnealing/Candidate/Candidate.hpp"
 #include <random>
 
-Image simulated_annealing(const Image & src, scheduler_type scheduler, uint64_t max_iter, uint16_t n_rect) {
+Image simulated_annealing(const Image & src, scheduler_type scheduler, uint64_t max_iter, uint16_t n_rect, uint64_t seed) {
         using namespace SA_utils;
         DEBUG_OUTPUT("SIMULATED ANNEALING\n");
         static std::mt19937 generator;
         std::uniform_real_distribution<double> dist(0, 1);
 
-        Candidate curr(src, n_rect);
+        Candidate curr(src, n_rect, seed);
         Candidate prev(curr);
         Candidate best(curr);
 

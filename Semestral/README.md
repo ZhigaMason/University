@@ -3,13 +3,12 @@
 ## TODO
 
 - [x] Rewrite mutation schema
-- [ ] Rewrite saving cooldown
-- [ ] Add seeding
-- [ ] Add better default names
+- [x] Add seeding
+- [x] Add better default names
 - [ ] Add multithreading
 - [ ] Add color sampling
     - [ ] KMeans
     - [ ] Random
-- [ ] Add online saving
+- [ ] Rewrite saving cooldown
     - [ ] period saver
     - [ ] sigterm catcher

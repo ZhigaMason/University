@@ -20,12 +20,17 @@ Options:
         -f/--file   - input filename
 
         -o/--output - output filename.
-                      default: out.png
+                        default: s<seed>-i<iter>-r<rect>-<file:.png>
+
+        -s/--seed   - seed used for simulated annealing
+                        default: 0
+
         -t/--temp   - starting temperature.
                         default: 1000.0
 
         -i/--iter   - maximal iterations.
                         default 10'000
+
         -r/--rect   - number of rectangles for approximation.
                         default 100
 
@@ -42,7 +47,7 @@ Options:
 )###");
 }
 
-int32_t input(int argc, char ** argv, Image & filein_img, std::string & fileout, scheduler_type & sch, uint64_t & max_iter, uint16_t & n_rect) {
+int32_t input(int argc, char ** argv, std::string & filein, std::string & fileout, scheduler_type & sch, uint64_t & max_iter, uint16_t & n_rect, uint64_t & seed) {
         enum EOptions : int {
                 FLAGGED      = 0,
                 UNKNOWN      = '?',
@@ -57,7 +62,8 @@ int32_t input(int argc, char ** argv, Image & filein_img, std::string & fileout,
                 PARAMS       = 'p',
                 TEMPERATURE  = 't',
                 ITERATIONS   = 'i',
-                RECTANGLE    = 'r'
+                RECTANGLE    = 'r',
+                SEED         = 's',
         };
 
         static struct option LONG_OPTIONS[] = {
@@ -69,13 +75,13 @@ int32_t input(int argc, char ** argv, Image & filein_img, std::string & fileout,
                 {"temp",      required_argument, nullptr, TEMPERATURE},
                 {"iter",      required_argument, nullptr, ITERATIONS},
                 {"rect",      required_argument, nullptr, RECTANGLE},
+                {"seed",      required_argument, nullptr, SEED},
                 {0, 0, 0, 0}
         };
 
-        static constexpr char OPT_STR[] = "hf:o:p:t:i:r:";
+        static constexpr char OPT_STR[] = "hf:o:p:t:i:r:s:";
 
         int32_t c = -1;
-        std::string filein = "";
         std::string scheduler = "G&G";
         double params        = NAN;
         double temperature   = 1000;
@@ -88,7 +94,6 @@ int32_t input(int argc, char ** argv, Image & filein_img, std::string & fileout,
                                 print_help();
                                 return EXIT_HELP;
                         case FILEIN:
-                                DEBUG_OUTPUT("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBB\n");
                                 filein = optarg;
                                 break;
                         case FILEOUT:
@@ -104,11 +109,13 @@ int32_t input(int argc, char ** argv, Image & filein_img, std::string & fileout,
                                 temperature = std::stod(optarg);
                                 break;
                         case ITERATIONS:
-                                DEBUG_OUTPUT("AAAAAAAAAAAAAAAAAAAAAAAAaa\n");
                                 max_iter = std::stoull(optarg);
                                 break;
                         case RECTANGLE:
                                 n_rect = std::stoul(optarg);
+                                break;
+                        case SEED:
+                                seed = std::stoull(optarg);
                                 break;
                         case UNKNOWN:
                         default:
@@ -135,8 +142,6 @@ int32_t input(int argc, char ** argv, Image & filein_img, std::string & fileout,
         DEBUG_OUTPUT("VALID INPUT\n");
 
         sch = scheduler_factories.at(scheduler)(params, temperature);
-        filein_img = Image(filein);
-
 
         #ifdef DEBUG
         for(int i = 0; i < argc; ++i)
@@ -147,18 +152,20 @@ int32_t input(int argc, char ** argv, Image & filein_img, std::string & fileout,
         DEBUG_OUTPUT("FILEOUT:  %s\n", fileout.c_str());
         DEBUG_OUTPUT("MAX ITER: %lu\n", max_iter);
         DEBUG_OUTPUT("N RECT:   %u\n", n_rect);
+        DEBUG_OUTPUT("SEED:     %lu\n", seed);
         return EXIT_SUCCESS;
 }
 
 int32_t main(int argc, char *argv[]) {
 
-        Image img;
+        std::string filein;
         scheduler_type sch;
-        std::string fileout = "out.png";
+        std::string fileout = "";
         uint64_t max_iter = 10'000;
+        uint64_t seed = 0;
         uint16_t n_rect = 100;
 
-        int32_t code = input(argc, argv, img, fileout, sch, max_iter, n_rect);
+        int32_t code = input(argc, argv, filein, fileout, sch, max_iter, n_rect, seed);
 
         if(code == EXIT_HELP)
                 return EXIT_SUCCESS;
@@ -166,7 +173,13 @@ int32_t main(int argc, char *argv[]) {
                 return code;
 
 
-        Image img_res = simulated_annealing(img, sch, max_iter, n_rect);
+        Image img_res = simulated_annealing(Image(filein), sch, max_iter, n_rect, seed);
 
+        if(fileout == "") {
+                uint32_t last_dir = filein.find_last_of("/");
+                uint32_t last_dot = filein.find_last_of(".");
+                DEBUG_OUTPUT("Last dir = %u, dot = %u\n", last_dir, last_dot);
+                fileout = "s" + std::to_string(seed) + "-i" + std::to_string(max_iter) + "-r" + std::to_string(n_rect) + "-" + filein.substr(last_dir + 1, last_dot - last_dir - 1) + ".png";
+        }
         img_res.save(fileout);
 }

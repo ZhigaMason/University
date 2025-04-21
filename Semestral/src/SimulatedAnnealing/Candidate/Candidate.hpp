@@ -4,6 +4,7 @@
 #include "Image/Image.hpp"
 #include "debug_utils.h"
 
+#include <random>
 #include <vector>
 #include <unordered_map>
 
@@ -38,7 +39,7 @@ struct Candidate {
                 YMAX = 4
         };
 
-        Candidate(const Image & img, uint16_t n_rect);
+        Candidate(const Image & img, uint16_t n_rect, uint64_t seed);
 
         ~Candidate() noexcept = default;
         Candidate(const Candidate & oth) = default;
@@ -92,6 +93,9 @@ private:
         void draw_rect(const Rect &);
         static Image::Pixel mix_colors(const std::unordered_map<Image::Pixel, uint16_t> &);
         static double compute_sq_error(Image::Pixel lhs, Image::Pixel rhs);
+
+        //const uint16_t seed;
+        mutable std::mt19937 generator;
 };
 
 template <typename T>
