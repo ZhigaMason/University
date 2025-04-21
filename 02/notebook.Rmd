@@ -72,7 +72,7 @@ table(case1201$ExpendCat)
 
 ```
 
-Let's display some basic descriptive statistics for each column.
+Let's display some basic descriptive statistics for each numeric column.
 
 ```{r}
 case1201_numerical_cols <- subset(case1201, select = -c(State, ExpendCat))
@@ -304,9 +304,58 @@ ggplot(case1201, aes(x = Rank, y = SAT, color = ExpendCat)) +
 
 We see how much scores differ for **Low** category.
 
-## Model with 3 Regressors
+## Model with three Regressors
+
+As addition to the previous regressors we will add **Takers**, because it is highly correlated with SAT scores.
 
 ```{r}
-full_model <- lm(SAT ~ Rank * ExpendCat *Years, data = case1201)
+full_model <- lm(SAT ~ Rank * ExpendCat * Takers, data = case1201)
 summary(full_model)
 ```
+
+We observe that Adjusted R-squared improved a lot. But the coefficients became unstable (high standard error) and insignificant. So we can try to reduce this model to a submodel using function `step()`, which goes through the variables step by step and If it encounters one whose inclusion reduces the AIC, it will add it to the model and continue until the optimal version is reached:
+
+```{r}
+step(lm(SAT ~ 1, data = case1201), 
+     scope = list(lower = ~ 1, upper = ~ Rank * ExpendCat * Takers), 
+     direction = "both", 
+     data = case1201)
+```
+
+Model with the lowest AIC found is
+
+`SAT ~ Rank + ExpendCat + Takers + Rank:Takers + ExpendCat:Takers`
+
+The `step()` function uses a greedy approach, so maybe we did not get a model with the best AIC, but we see, that terms number was significantly reduced. Let's fit the model and see how statistics for it changed, compared to previous model.
+
+```{r}
+final_model <- lm(formula = SAT ~ Rank + ExpendCat + Takers + Rank:Takers + 
+    ExpendCat:Takers, data = case1201)
+summary(final_model)
+```
+
+The final model has slightly higher Adjusted R-squared with lower Multiple R-squared. Most of the coefficients are significant and in this case unlike the model with just **Rank** and **ExpendCat** we see that the model is better interpretable:
+
+-   **Intercept**: Baseline SAT score is 278.62 when Rank is 0, ExpendCat is Low, Takers is 0%.
+
+-   **Rank**: Each rank increase raises SAT score by 8.55 points.
+
+-   **ExpendCatMedium**: Schools with medium expenditure have SAT scores 22.55 points higher than low-expenditure schools.
+
+-   **ExpendCatHigh**: High-expenditure schools have SAT scores 36.06 points higher than low-expenditure schools.
+
+-   **Takers**: Each additional percent of test-takers increases SAT score by 10.42 points.
+
+-   **Rank**:**Takers**: As test-takers increase, the effect of Rank on SAT scores decreases by 0.16 points.
+
+-   **ExpendCatMedium:Takers**: In medium-expenditure schools, each additional test-takers percent increases SAT score by 0.92 points more than in low-expenditure schools.
+
+-   **ExpendCatHigh:Takers**: In high-expenditure schools, each additional test-taker increases SAT score by 0.60 points, but this effect is not significant.
+
+As previously let's test if model and submodel have the same power.
+
+```{r}
+anova(final_model, full_model)
+```
+
+High p-value shows, that we can not say that full model is better, and we can use smaller, better interpretable one.
