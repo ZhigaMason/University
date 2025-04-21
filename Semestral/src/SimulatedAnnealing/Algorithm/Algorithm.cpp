@@ -15,16 +15,16 @@ Image simulated_annealing(const Image & src, scheduler_type scheduler, uint64_t 
 
         for(uint64_t i = 0, last_copy = 0; i < max_iter; ++i, ++last_copy) {
                 Rect src = curr.randomRect();
-                Rect dst = curr.mutate(src);
+                auto [dst, mut] = curr.mutate(src);
                 double p = exp((curr.MSE - prev.MSE) / scheduler(i));
                 DEBUG_OUTPUT("=== i=%lu, best MSE=%lf, prev MSE=%lf, curr MSE=%lf\n", i, best.MSE, prev.MSE, curr.MSE);
                 if(curr.MSE < prev.MSE || p >= dist(generator)) {
                         DEBUG_OUTPUT("==== change rect\n");
-                        prev.changeRect(src, dst);
+                        prev.changeRect(src, dst, mut);
                         prev.MSE = curr.MSE;
                 }
                 else {
-                        curr.changeRect(dst, src);
+                        curr.changeRect(dst, src, mut);
                         curr.MSE = prev.MSE;
                 }
                 if(prev.MSE < best.MSE && last_copy >= 100) {

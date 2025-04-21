@@ -36,7 +36,7 @@ Candidate::Candidate(const Image &img, uint16_t n_rect)
         for(uint16_t j = 0; j < h; ++j) {
                 for(uint16_t i = 0; i < w; ++i) {
                         local_mses.at(i, j) = compute_sq_error(img.at(i,j), mix_colors(pixels.at(i, j)));
-                        MSE += local_mses.at(i, j);
+                        MSE += local_mses.at(i, j) / (w * h);
                 }
         }
 }
@@ -68,50 +68,51 @@ Rect Candidate::randomRect() const {
 }
 
 // Mutates one Rect, calculates new MSE and returns new Rect
-Rect Candidate::mutate(const Rect & src) {
-        enum Mutation {
-                COLOR = 0,
-                LEFT_LOWER = 1,
-                RIGHT_UPPER = 2
-        };
+std::pair<Rect, Candidate::EMutation> Candidate::mutate(const Rect & src) {
 
         static std::mt19937 generator;
-        std::discrete_distribution<uint8_t> distribution_mutations({1,1,1});
+        std::discrete_distribution<uint8_t> distribution_mutations({1,1,1,1,1});
 
-        Mutation val = Mutation(distribution_mutations(generator));
+        EMutation val = EMutation(distribution_mutations(generator));
 
         Rect dst = src;
+
         switch(val) {
                 case COLOR: {
-                        std::uniform_int_distribution<uint32_t> distribution(0, UINT32_MAX);
-                        dst.pxl = distribution(generator);
+                        std::uniform_int_distribution<uint32_t> distribution(0, UINT32_MAX >> 8);
+                        dst.pxl = (distribution(generator) << 8) | 0xFF;
                         break;
                 }
-                case LEFT_LOWER: {
-                        std::uniform_int_distribution<uint16_t> distribution_x(0, dst.x_min - 1);
-                        std::uniform_int_distribution<uint16_t> distribution_y(0, dst.y_min - 1);
-                        dst.x_min = distribution_x(generator);
-                        dst.y_min = distribution_y(generator);
+                case XMIN: {
+                        std::uniform_int_distribution<uint16_t> dist(0, dst.x_max);
+                        dst.x_min = dist(generator);
                         break;
                 }
-                case RIGHT_UPPER: {
-                        std::uniform_int_distribution<uint16_t> distribution_x(dst.x_max + 1, w - 1);
-                        std::uniform_int_distribution<uint16_t> distribution_y(dst.y_max + 1, h - 1);
-                        dst.x_min = distribution_x(generator);
-                        dst.y_min = distribution_y(generator);
+                case YMIN: {
+                        std::uniform_int_distribution<uint16_t> dist(0, dst.y_max);
+                        dst.y_min = dist(generator);
+                        break;
+                }
+                case XMAX: {
+                        std::uniform_int_distribution<uint16_t> dist(dst.x_min, w - 1);
+                        dst.x_max = dist(generator);
+                        break;
+                }
+                case YMAX: {
+                        std::uniform_int_distribution<uint16_t> dist(dst.y_min, h - 1);
+                        dst.y_max = dist(generator);
                         break;
                 }
         }
 
         //DEBUG_OUTPUT("PRECHANGE MSE:  %lf\n", MSE);
-        assert(changeRect(src, dst));
+        assert(changeRect(src, dst, val));
         //DEBUG_OUTPUT("POSTCHANGE MSE: %lf\n", MSE);
-        return dst;
+        return {dst, val};
 }
 
-
 // returns false if src does not exist in this candidate
-bool Candidate::changeRect(const Rect & src, const Rect & dst) {
+bool Candidate::changeRect(const Rect & src, const Rect & dst, EMutation mut) {
         uint16_t idx;
         try {
                 idx = rect_idx.at(src);
@@ -120,8 +121,59 @@ bool Candidate::changeRect(const Rect & src, const Rect & dst) {
                 return false;
         }
 
-        clean_rect(src);
-        draw_rect(dst);
+        switch(mut) {
+
+                case COLOR: {
+                        clean_rect(src);
+                        draw_rect(dst);
+                        break;
+                }
+                case XMIN: {
+                        if(src.x_min < dst.x_min) {
+                                Rect rect = Rect(src.x_min, src.y_min, dst.x_min, src.y_max);
+                                clean_rect(rect);
+                        }
+                        else {
+                                Rect rect = Rect(dst.x_min, src.y_min, src.x_min, src.y_max);
+                                draw_rect(rect);
+                        }
+                        break;
+                }
+                case YMIN: {
+                        if(src.y_min < dst.y_min) {
+                                Rect rect = Rect(src.x_min, src.y_min, src.x_max, dst.y_min);
+                                clean_rect(rect);
+                        }
+                        else {
+                                Rect rect = Rect(src.x_min, dst.y_min, src.x_max, src.y_min);
+                                draw_rect(rect);
+                        }
+                        break;
+                }
+                case XMAX: {
+                        if(src.x_max > dst.x_max) {
+                                Rect rect = Rect(dst.x_max, src.y_min, src.x_max, src.y_max);
+                                clean_rect(rect);
+                        }
+                        else {
+                                Rect rect = Rect(src.x_max, src.y_min, dst.x_max, src.y_max);
+                                draw_rect(rect);
+                        }
+                        break;
+                }
+                case YMAX: {
+                        if(src.y_max > dst.y_max) {
+                                Rect rect = Rect(src.x_max, dst.y_max, src.x_max, src.y_max);
+                                clean_rect(rect);
+                        }
+                        else {
+                                Rect rect = Rect(src.x_max, src.y_max, src.x_max, dst.y_max);
+                                draw_rect(rect);
+                        }
+                        break;
+                }
+        }
+
         rects[idx] = dst;
         rect_idx.erase(src);
         rect_idx.emplace(dst, idx);
@@ -133,12 +185,12 @@ void Candidate::clean_rect(const Rect & r) {
         for(uint16_t j = r.y_min; j <= r.y_max; ++j) {
                 for(uint16_t i = r.x_min; i <= r.x_max; ++i) {
                         std::unordered_map<Image::Pixel, uint16_t> & pxls = pixels.at(i, j);
-                        MSE -= local_mses.at(i, j);
+                        MSE -= local_mses.at(i, j)/ (w * h);
                         pxls[r.pxl] -= 1;
 
                         Image::Pixel new_mixture = mix_colors(pxls);
                         local_mses.at(i, j) = compute_sq_error(new_mixture, img.at(i, j));
-                        MSE += local_mses.at(i, j);
+                        MSE += local_mses.at(i, j)/ (w * h);
                 }
         }
 }
@@ -148,12 +200,12 @@ void Candidate::draw_rect(const Rect & r) {
         for(uint16_t j = r.y_min; j <= r.y_max; ++j) {
                 for(uint16_t i = r.x_min; i <= r.x_max; ++i) {
                         std::unordered_map<Image::Pixel, uint16_t> & pxls = pixels.at(i, j);
-                        MSE -= local_mses.at(i, j);
+                        MSE -= local_mses.at(i, j)/ (w * h);
                         pxls[r.pxl] += 1;
 
                         Image::Pixel new_mixture = mix_colors(pxls);
                         local_mses.at(i, j) = compute_sq_error(new_mixture, img.at(i, j));
-                        MSE += local_mses.at(i, j);
+                        MSE += local_mses.at(i, j)/ (w * h);
                 }
         }
 

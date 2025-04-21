@@ -30,6 +30,14 @@ namespace std {
 
 struct Candidate {
 
+        enum EMutation {
+                COLOR = 0,
+                XMIN = 1,
+                YMIN = 2,
+                XMAX = 3,
+                YMAX = 4
+        };
+
         Candidate(const Image & img, uint16_t n_rect);
 
         ~Candidate() noexcept = default;
@@ -44,10 +52,10 @@ struct Candidate {
         Rect randomRect() const;
 
         // Mutates one Rect, calculates new MSE and returns new Rect
-        Rect mutate(const SA_utils::Rect & src);
+        std::pair<Rect, EMutation> mutate(const SA_utils::Rect & src);
 
         // returns false if src does not exist in this candidate
-        bool changeRect(const SA_utils::Rect & src, const SA_utils::Rect & dst);
+        bool changeRect(const SA_utils::Rect & src, const SA_utils::Rect & dst, EMutation mut);
 
         Image image() const;
 
