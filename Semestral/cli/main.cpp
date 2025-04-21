@@ -29,14 +29,17 @@ Options:
                         default: 1000.0
 
         -i/--iter   - maximal iterations.
-                        default 10'000
+                        default: 10'000
 
         -r/--rect   - number of rectangles for approximation.
-                        default 100
+                        default: 100
+
+        -c/--colors - number of sampled colors from picture
+                        default: 32
 
         --cooldown  - saving cooldown. If set to zero, do not save until complete.
                       Saves best result with prefix inficating number of iteration into <file> directory without extension and path.
-                        default 0
+                        default: 0
 
         --scheduler - temperature scheduler.
                         options: G&G, Geom, Lin
@@ -51,7 +54,7 @@ Options:
 )###");
 }
 
-int32_t input(int argc, char ** argv, std::string & filein, std::string & fileout, scheduler_type & sch, uint64_t & max_iter, uint16_t & n_rect, uint64_t & seed, uint64_t & cooldown) {
+int32_t input(int argc, char ** argv, std::string & filein, std::string & fileout, scheduler_type & sch, uint64_t & max_iter, uint16_t & n_rect, uint64_t & seed, uint64_t & cooldown, uint32_t n_samples) {
         enum EOptions : int {
                 FLAGGED      = 0,
                 UNKNOWN      = '?',
@@ -68,6 +71,7 @@ int32_t input(int argc, char ** argv, std::string & filein, std::string & fileou
                 ITERATIONS   = 'i',
                 RECTANGLE    = 'r',
                 SEED         = 's',
+                COLORS       = 'c',
                 COOLDOWN     = 1001,
         };
 
@@ -79,6 +83,7 @@ int32_t input(int argc, char ** argv, std::string & filein, std::string & fileou
                 {"params",    required_argument, nullptr, PARAMS},
                 {"temp",      required_argument, nullptr, TEMPERATURE},
                 {"iter",      required_argument, nullptr, ITERATIONS},
+                {"colors",    required_argument, nullptr, COLORS},
                 {"rect",      required_argument, nullptr, RECTANGLE},
                 {"seed",      required_argument, nullptr, SEED},
                 {"cooldown",  required_argument, nullptr, COOLDOWN},
@@ -126,6 +131,9 @@ int32_t input(int argc, char ** argv, std::string & filein, std::string & fileou
                         case COOLDOWN:
                                 cooldown = std::stoull(optarg);
                                 break;
+                        case COLORS:
+                                n_samples = std::stoul(optarg);
+                                break;
                         case UNKNOWN:
                         default:
                                 break;
@@ -163,6 +171,7 @@ int32_t input(int argc, char ** argv, std::string & filein, std::string & fileou
         DEBUG_OUTPUT("N RECT:   %u\n", n_rect);
         DEBUG_OUTPUT("SEED:     %lu\n", seed);
         DEBUG_OUTPUT("COOLDOWN: %lu\n", cooldown);
+        DEBUG_OUTPUT("NSAMPLES: %u\n", n_samples);
         return EXIT_SUCCESS;
 }
 
@@ -175,8 +184,9 @@ int32_t main(int argc, char *argv[]) {
         uint64_t save_cooldown = 0;
         uint64_t seed = 0;
         uint16_t n_rect = 100;
+        uint32_t n_samples = 32;
 
-        int32_t code = input(argc, argv, filein, fileout, sch, max_iter, n_rect, seed, save_cooldown);
+        int32_t code = input(argc, argv, filein, fileout, sch, max_iter, n_rect, seed, save_cooldown, n_samples);
 
         if(code == EXIT_HELP)
                 return EXIT_SUCCESS;
@@ -184,7 +194,7 @@ int32_t main(int argc, char *argv[]) {
                 return code;
 
 
-        Image img_res = simulated_annealing(filein, sch, max_iter, n_rect, seed, save_cooldown);
+        Image img_res = simulated_annealing(filein, sch, max_iter, n_rect, seed, save_cooldown, n_samples);
 
         if(fileout == "") {
                 uint32_t last_dir = filein.find_last_of("/");

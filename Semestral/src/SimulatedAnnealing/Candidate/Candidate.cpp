@@ -1,16 +1,19 @@
 #include "Candidate.hpp"
 #include "debug_utils.h"
+
+#include "ColorExtraction/Random/Random.hpp"
+
 #include <cassert>
 #include <climits>
 #include <random>
 #include "stb_image.h"
 
-Candidate::Candidate(const Image &img, uint16_t n_rect, uint64_t seed)
+Candidate::Candidate(const Image &img, uint16_t n_rect, uint64_t seed, uint32_t samples)
     :  MSE(0), img(img), w(img.width), h(img.height),local_mses(img.width, img.height),
-      pixels(img.width, img.height), generator(seed) {
+        pixels(img.width, img.height), color_palette(random_sampled_pixels(reinterpret_cast<Image::Pixel *>(img.data), img.height, img.width, samples, seed)), generator(seed) {
         std::uniform_int_distribution<uint16_t> dist_x(0, w-1);
         std::uniform_int_distribution<uint16_t> dist_y(0, h-1);
-        std::uniform_int_distribution<uint32_t> dist_pxl(0, 0xFF'FF'FF);
+        std::uniform_int_distribution<uint32_t> dist_pxl(0, color_palette.size() - 1);
 
         for(uint16_t i = 0; i < n_rect; ++i) {
                 uint16_t x_min = dist_x(generator);
@@ -19,7 +22,7 @@ Candidate::Candidate(const Image &img, uint16_t n_rect, uint64_t seed)
                 std::uniform_int_distribution<uint16_t> dist_ym(y_min, h-1);
                 uint16_t x_max = dist_xm(generator);
                 uint16_t y_max = dist_ym(generator);
-                Rect r(x_min, y_min, x_max, y_max, dist_pxl(generator));
+                Rect r(x_min, y_min, x_max, y_max, color_palette[dist_pxl(generator)]);
                 DEBUG_OUTPUT("xmin=%u, ymin=%u, xmax=%u, ymax=%u\n", x_min, y_min, x_max, y_max);
                 rects.push_back(r);
                 rect_idx.emplace(r, rects.size() - 1);
@@ -76,8 +79,8 @@ std::pair<Rect, Candidate::EMutation> Candidate::mutate(const Rect & src) {
 
         switch(val) {
                 case COLOR: {
-                        std::uniform_int_distribution<uint32_t> distribution(0, 0xFF'FF'FF);
-                        dst.pxl = distribution(generator);
+                        std::uniform_int_distribution<uint32_t> dist_pxl(0, color_palette.size());
+                        dst.pxl = color_palette[dist_pxl(generator)];
                         break;
                 }
                 case XMIN: {
@@ -111,10 +114,26 @@ std::pair<Rect, Candidate::EMutation> Candidate::mutate(const Rect & src) {
 // returns false if src does not exist in this candidate
 bool Candidate::changeRect(const Rect & src, const Rect & dst, EMutation mut) {
         uint16_t idx;
-        try {
-                idx = rect_idx.at(src);
+        if(auto it = rect_idx.find(src); it != rect_idx.end()) {
+                idx = it->second;
         }
-        catch(const std::out_of_range &) {
+        else{
+                DEBUG_OUTPUT("FAILED FINDING RECT\n");
+                DEBUG_OUTPUT("COULD NOT FIND:\n");
+                DEBUG_OUTPUT("    x_min=%u, y_min=%u\n", src.x_min, src.y_min);
+                DEBUG_OUTPUT("    x_max=%u, y_max=%u\n", src.x_max, src.y_max);
+                DEBUG_OUTPUT("    r=%u, g=%u, b=%u\n", src.pxl.r, src.pxl.g,  src.pxl.b);
+                DEBUG_OUTPUT("DST:\n");
+                DEBUG_OUTPUT("    x_min=%u, y_min=%u\n", dst.x_min, dst.y_min);
+                DEBUG_OUTPUT("    x_max=%u, y_max=%u\n", dst.x_max, dst.y_max);
+                DEBUG_OUTPUT("    r=%u, g=%u, b=%u\n", dst.pxl.r, dst.pxl.g,  dst.pxl.b);
+                DEBUG_OUTPUT("RECTS IN MAP:\n");
+#ifdef DEBUG
+                for(const auto & [r, idx] : rect_idx) {
+                        printf("    x_min=%u, y_min=%u, x_max=%u, y_max=%u\n", r.x_min, r.y_min, r.x_max, r.y_max);
+                        printf("      (%u, %u, %u)\n", r.pxl.r, r.pxl.g, r.pxl.b);
+                }
+#endif
                 return false;
         }
 
@@ -172,7 +191,7 @@ bool Candidate::changeRect(const Rect & src, const Rect & dst, EMutation mut) {
         }
 
         rects[idx] = dst;
-        rect_idx.erase(src);
+        rect_idx.erase(rect_idx.find(src));
         rect_idx.emplace(dst, idx);
         return true;
 }

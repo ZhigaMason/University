@@ -9,7 +9,8 @@ SRC =  cli/main.cpp\
        src/Image/Image.cpp\
        src/SimulatedAnnealing/Algorithm/Algorithm.cpp\
        src/SimulatedAnnealing/Candidate/Candidate.cpp\
-       src/SimulatedAnnealing/Schedulers/Schedulers.cpp
+       src/SimulatedAnnealing/Schedulers/Schedulers.cpp\
+       src/ColorExtraction/Random/Random.cpp
 
 DEBUG_DIR=_debug
 

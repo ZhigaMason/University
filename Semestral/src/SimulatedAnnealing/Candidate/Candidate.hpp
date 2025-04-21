@@ -39,7 +39,7 @@ struct Candidate {
                 YMAX = 4
         };
 
-        Candidate(const Image & img, uint16_t n_rect, uint64_t seed);
+        Candidate(const Image & img, uint16_t n_rect, uint64_t seed, uint32_t samples);
 
         ~Candidate() noexcept = default;
         Candidate(const Candidate & oth) = default;
@@ -87,7 +87,9 @@ private:
         Array2D<double>   local_mses;
         Array2D<std::unordered_map<Image::Pixel, uint16_t>>    pixels;
         std::vector<SA_utils::Rect> rects;
-        std::unordered_map<Rect, uint16_t> rect_idx;
+        std::unordered_multimap<Rect, uint16_t> rect_idx;
+
+        std::vector<Image::Pixel> color_palette;
 
         void clean_rect(const Rect &);
         void draw_rect(const Rect &);

@@ -4,7 +4,7 @@
 #include <random>
 #include <filesystem>
 
-Image simulated_annealing(const std::string & src_filename, scheduler_type scheduler, uint64_t max_iter, uint16_t n_rect, uint64_t seed, uint64_t save_cooldown) {
+Image simulated_annealing(const std::string & src_filename, scheduler_type scheduler, uint64_t max_iter, uint16_t n_rect, uint64_t seed, uint64_t save_cooldown, uint32_t n_samples) {
         using namespace SA_utils;
         using namespace std::filesystem;
         DEBUG_OUTPUT("SIMULATED ANNEALING\n");
@@ -12,7 +12,7 @@ Image simulated_annealing(const std::string & src_filename, scheduler_type sched
         std::uniform_real_distribution<double> dist(0, 1);
 
         Image img = Image(src_filename);
-        Candidate curr(img, n_rect, seed);
+        Candidate curr(img, n_rect, seed, n_samples);
         Candidate prev(curr);
         Candidate best(curr);
 
@@ -33,11 +33,12 @@ Image simulated_annealing(const std::string & src_filename, scheduler_type sched
                 double p = exp((curr.MSE - prev.MSE) / scheduler(i));
                 DEBUG_OUTPUT("=== i=%lu, best MSE=%lf, prev MSE=%lf, curr MSE=%lf\n", i, best.MSE, prev.MSE, curr.MSE);
                 if(curr.MSE < prev.MSE || p >= dist(generator)) {
-                        DEBUG_OUTPUT("==== change rect\n");
+                        DEBUG_OUTPUT("==== change prev\n");
                         prev.changeRect(src, dst, mut);
                         prev.MSE = curr.MSE;
                 }
                 else {
+                        DEBUG_OUTPUT("==== change curr\n");
                         curr.changeRect(dst, src, mut);
                         curr.MSE = prev.MSE;
                 }
