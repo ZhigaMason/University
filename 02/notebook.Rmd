@@ -75,10 +75,16 @@ table(case1201$ExpendCat)
 Let's display the summary of the whole dataset and standard deviation for numeric columns.
 
 ```{r}
-summary(case1201)
+case1201_numerical_cols <- subset(case1201, select = -c(State, ExpendCat))
+summ <- c('mean(x)', 'sd(x)', 'skewness(x)', 'min(x)', 'pctile (x)[25]', 
+          'median(x)', 'pctile(x)[75]', 'max(x)', 'IQR(x)'
+)
 
-print("Standard deviation:")
-sapply(case1201[sapply(case1201, is.numeric)], sd, na.rm = TRUE)
+sumtable(
+  case1201_numerical_cols, colnames(case1201_numerical_cols),
+  out='kable',
+  summ=summ
+)
 ```
 
 Let's explore relationships between variables using correlation matrix:
@@ -186,7 +192,7 @@ legend("bottomright",
        col = c("blue", "red"), lwd = 2)
 ```
 
-Now we have to choose which model to use. **Linear Model** is great, mainly because it's interpretation is very clear: *for each 1-point increase in Rank, the SAT score increases by \~9.56 points*. Despite the fact that **Quadratic Model** has a slightly better fit (Adjusted R² = 0.779 vs. 0.769) it is hardly worth the effort because coefficients are harder to interpret. The linear term is not statistically significant (p = 0.1919), and the squared term is marginally significant (p = 0.0835), meaning added complexity doesn’t yield major gains.
+Now we have to choose which model to use. **Linear Model** is great, mainly because it's interpretation is very clear: *for each 1-point increase in Rank, the SAT score increases by \~9.56 points*. *Intercept means that the SAT score of person with 0 point Rank may be predicted as \~183 points.* Despite the fact that **Quadratic Model** has a slightly better fit (Adjusted R² = 0.779 vs. 0.769) it is hardly worth the effort because coefficients are harder to interpret. The linear term is not statistically significant (p = 0.1919), and the squared term is marginally significant (p = 0.0835), meaning added complexity doesn’t yield major gains.
 
 So we will choose **Linear Model**. Rank is a strong linear predictor of SAT scores, that explains most of the variability and there’s no clear evidence that a quadratic form adds real value.
 
@@ -202,7 +208,22 @@ aov(SAT ~ ExpendCat, data = case1201)
 anova(aov(SAT ~ ExpendCat, data = case1201))
 ```
 
-The ANOVA test shows that **ExpendCat** does not significantly affect SAT scores. The **p-value** is much greater than 0.05, thus result is not statistically significant and we fail to reject the null hypothesis. SAT scores do not differ meaningfully between low, medium, and high-expenditure groups. #TODO doplnit maybe?
+The ANOVA test shows that **ExpendCat** does not significantly affect SAT scores. The **p-value** is much greater than 0.05, thus result is not statistically significant and we fail to reject the null hypothesis. SAT scores do not differ meaningfully between low, medium, and high-expenditure groups.
+
+```{r}
+fit=lm(SAT ~ ExpendCat, data = case1201)
+summary(fit)
+```
+
+Coefficients:
+
+-   Intercept: This is the average SAT score for states (944.94)in the Low expenditure category.
+
+-   ExpendCatMedium: On average, SAT scores in the Medium category are only \~11 points higher than in the Low category, but this difference **is not statistically significant**.
+
+-   ExpendCatHigh: SAT scores in the High expenditure category are very slightly lower (by \~1 point) than the Low category, **and this is also not significant**.
+
+So the model suggests that total state expenditure on secondary schools has no real effect on average SAT scores. Also the model itself is poor, **Adjusted R-squared is negative**, meaning the model performs worse than a mean-only model.
 
 ```{r}
 boxplot(SAT ~ ExpendCat, data = case1201,
@@ -210,3 +231,5 @@ boxplot(SAT ~ ExpendCat, data = case1201,
         xlab = "Expenditure Category", ylab = "SAT Score",
         col = c("lightblue", "lightgreen", "lightcoral"))
 ```
+
+## ABOBA
