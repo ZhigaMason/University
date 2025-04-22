@@ -88,6 +88,14 @@ sumtable(
 )
 ```
 
+Some interesting observations we can make are:
+
+-   SAT scores distribution can be symmetrical.
+
+-   Expenditure is highly skewed to the right, meaning there are some states, that spent a lot more money, than the others.
+
+-   Takers have very high Sd, meaning high variability among regions in terms of number of test-takers.
+
 Let's explore relationships between variables using correlation matrix:
 
 ```{r}
@@ -131,7 +139,9 @@ hist(case1201$Rank,
 
 ```
 
-Let's take a quick look on scatter plots and Pearson correlation coefficient to make some assumptions about linear trends or clusters between SAT scores and other variables.
+The distributions do not appear to follow a normal distribution, however we have fairly few data points to conclude something from graphs.
+
+Let's take a quick look on scatter plots and Pearson correlation coefficient to make some assumptions about linear trends between SAT scores and other variables.
 
 ```{r}
 plot(case1201$Takers, case1201$SAT,
