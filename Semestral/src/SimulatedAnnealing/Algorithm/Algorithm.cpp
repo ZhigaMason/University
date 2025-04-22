@@ -4,7 +4,7 @@
 #include <random>
 #include <filesystem>
 
-Image simulated_annealing(const std::string & src_filename, scheduler_type scheduler, uint64_t max_iter, uint16_t n_rect, uint64_t seed, uint64_t save_cooldown, uint32_t n_samples) {
+Image simulated_annealing(const std::string & src_filename, scheduler_type scheduler, uint64_t max_iter, uint16_t n_rect, uint64_t seed, uint64_t save_cooldown, uint32_t n_samples, uint8_t n_thrs) {
         using namespace SA_utils;
         using namespace std::filesystem;
         DEBUG_OUTPUT("SIMULATED ANNEALING\n");
@@ -12,7 +12,10 @@ Image simulated_annealing(const std::string & src_filename, scheduler_type sched
         std::uniform_real_distribution<double> dist(0, 1);
 
         Image img = Image(src_filename);
-        Candidate curr(img, n_rect, seed, n_samples);
+        std::unique_ptr<Candidate::ThreadManager> thr_manager_ptr = nullptr;
+        if(n_thrs > 1)
+                thr_manager_ptr = std::make_unique<Candidate::ThreadManager>(n_thrs);
+        Candidate curr(img, n_rect, seed, n_samples, thr_manager_ptr.get());
         Candidate prev(curr);
         Candidate best(curr);
 
@@ -59,6 +62,7 @@ Image simulated_annealing(const std::string & src_filename, scheduler_type sched
                 best.copy_from(prev);
         }
 
+        if(thr_manager_ptr) thr_manager_ptr->finalize();
         DEBUG_OUTPUT("  = FINISHED SA\n");
         return best.image();
 }

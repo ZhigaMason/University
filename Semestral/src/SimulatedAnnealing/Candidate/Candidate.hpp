@@ -4,7 +4,9 @@
 #include "Image/Image.hpp"
 #include "debug_utils.h"
 
+#include <condition_variable>
 #include <random>
+#include <thread>
 #include <vector>
 #include <unordered_map>
 
@@ -29,6 +31,7 @@ namespace std {
         };
 };
 
+
 struct Candidate {
 
         enum EMutation {
@@ -39,7 +42,42 @@ struct Candidate {
                 YMAX = 4
         };
 
-        Candidate(const Image & img, uint16_t n_rect, uint64_t seed, uint32_t samples);
+        struct ThreadManager {
+
+                static constexpr uint8_t MIN_START = 20;
+
+                ThreadManager(uint8_t n_thrs);
+                void clean_rect(Candidate & cand, Rect rect);
+                void draw_rect(Candidate & cand, Rect rect);
+                void finalize();
+
+                enum EOperationType : int8_t {
+                        CLEAN,
+                        DRAW
+                };
+
+                std::vector<std::thread> thrs;
+
+                uint8_t counter_to_start = 0;
+                uint8_t counter_to_finish = 0;
+                std::vector<bool> worker_finished;
+
+                std::mutex mtx;
+                std::condition_variable worker_cv;
+                std::condition_variable master_cv;
+
+                bool is_finalized = false;
+
+                EOperationType opType;
+                Candidate * cand;
+                Rect rect;
+
+                void workerFunc(uint8_t thr_num);
+                void doWork(Candidate & cand, Rect rect);
+        };
+
+
+        Candidate(const Image & img, uint16_t n_rect, uint64_t seed, uint32_t samples, ThreadManager *);
 
         ~Candidate() noexcept = default;
         Candidate(const Candidate & oth) = default;
@@ -80,7 +118,7 @@ private:
                 uint32_t w, h;
         };
 
-        using color_data_t=uint32_t;
+        friend ThreadManager;
 
         const Image & img;
         uint32_t w, h;
@@ -98,6 +136,8 @@ private:
 
         //const uint16_t seed;
         mutable std::mt19937 generator;
+        ThreadManager * thrManager;
+
 };
 
 template <typename T>

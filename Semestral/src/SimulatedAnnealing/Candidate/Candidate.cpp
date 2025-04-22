@@ -8,9 +8,102 @@
 #include <random>
 #include "stb_image.h"
 
-Candidate::Candidate(const Image &img, uint16_t n_rect, uint64_t seed, uint32_t samples)
+Candidate::ThreadManager::ThreadManager(uint8_t n_thrs)
+        : worker_finished(n_thrs, false) {
+        for(uint8_t i = 0; i < n_thrs; ++i) {
+                thrs.emplace_back(
+                        &ThreadManager::workerFunc, this, i
+                );
+        }
+}
+
+void Candidate::ThreadManager::clean_rect(Candidate & cand, Rect rect) {
+        opType = CLEAN;
+        doWork(cand, rect);
+}
+
+void Candidate::ThreadManager::draw_rect(Candidate & cand, Rect rect) {
+        opType = DRAW;
+        doWork(cand, rect);
+}
+
+void Candidate::ThreadManager::finalize() {
+        std::unique_lock locker(mtx);
+        is_finalized = true;
+        counter_to_start = thrs.size();
+        counter_to_finish = thrs.size();
+
+        worker_cv.notify_all();
+        locker.unlock();
+
+        for(auto & thr : thrs)
+                thr.join();
+}
+
+void Candidate::ThreadManager::doWork(Candidate & arg_cand, Rect arg_rect) {
+        std::unique_lock locker(mtx);
+        for(uint8_t i = 0; i < worker_finished.size(); ++i)
+                worker_finished[i] = false;
+        counter_to_start = thrs.size();
+        counter_to_finish = thrs.size();
+
+        cand = &arg_cand;
+        rect = arg_rect;
+
+        worker_cv.notify_all();
+        master_cv.wait(locker, [&] () {
+                return counter_to_finish == 0;
+        });
+}
+
+void Candidate::ThreadManager::workerFunc(uint8_t thr_num) {
+        while(true) {
+                std::unique_lock locker(mtx);
+                worker_cv.wait(locker, [&] () {
+                        return counter_to_start > 0 && (is_finalized || !worker_finished[thr_num]);
+                });
+                counter_to_start -= 1;
+                if(is_finalized) {
+                        counter_to_finish -= 1;
+                        break;
+                }
+                assert(cand);
+                //DEBUG_OUTPUT("THREAD #%u started on task\n", thr_num);
+                locker.unlock();
+
+                // work
+                double local_change = 0;
+                uint16_t w = cand->w, h = cand->h;
+                Array2D<double> & local_mses = cand->local_mses;
+                for(uint16_t j = rect.y_min; j <= rect.y_max; ++j) {
+                        uint16_t offset = thr_num;
+                        for(uint16_t i = rect.x_min + offset; i <= rect.x_max; i += thrs.size()) {
+                                std::unordered_map<Image::Pixel, uint16_t> & pxls = cand->pixels.at(i, j);
+                                local_change -= local_mses.at(i, j)/ (w * h);
+                                if(opType == CLEAN)
+                                        pxls[rect.pxl] -= 1;
+                                else
+                                        pxls[rect.pxl] += 1;
+
+                                Image::Pixel new_mixture = mix_colors(pxls);
+                                local_mses.at(i, j) = compute_sq_error(new_mixture, cand->img.at(i, j));
+                                local_change += local_mses.at(i, j)/ (w * h);
+                        }
+                }
+
+                locker.lock();
+                cand->MSE += local_change;
+                counter_to_finish -= 1;
+                worker_finished[thr_num] = true;
+                if(counter_to_finish == 0)
+                        master_cv.notify_one();
+        }
+}
+
+Candidate::Candidate(const Image &img, uint16_t n_rect, uint64_t seed, uint32_t samples, ThreadManager * tm)
     :  MSE(0), img(img), w(img.width), h(img.height),local_mses(img.width, img.height),
-        pixels(img.width, img.height), color_palette(random_sampled_pixels(reinterpret_cast<Image::Pixel *>(img.data), img.height, img.width, samples, seed)), generator(seed) {
+        pixels(img.width, img.height), color_palette(random_sampled_pixels(reinterpret_cast<Image::Pixel *>(img.data), img.height, img.width, samples, seed)), generator(seed),
+        thrManager(tm) {
         std::uniform_int_distribution<uint16_t> dist_x(0, w-1);
         std::uniform_int_distribution<uint16_t> dist_y(0, h-1);
         std::uniform_int_distribution<uint32_t> dist_pxl(0, color_palette.size() - 1);
@@ -197,6 +290,14 @@ bool Candidate::changeRect(const Rect & src, const Rect & dst, EMutation mut) {
 }
 
 void Candidate::clean_rect(const Rect & r) {
+        if(thrManager) {
+                uint16_t rw = r.x_max - r.x_min;
+                uint16_t rh = r.y_max - r.y_min;
+                if(rw > ThreadManager::MIN_START && rh > ThreadManager::MIN_START) {
+                        thrManager->clean_rect(*this, r);
+                        return;
+                }
+        }
         //DEBUG_OUTPUT("CLEANING RECT (%u, %u) - (%u, %u)\n", r.x_min, r.y_min, r.x_max, r.y_max);
         for(uint16_t j = r.y_min; j <= r.y_max; ++j) {
                 for(uint16_t i = r.x_min; i <= r.x_max; ++i) {
@@ -212,6 +313,14 @@ void Candidate::clean_rect(const Rect & r) {
 }
 
 void Candidate::draw_rect(const Rect & r) {
+        if(0 && thrManager) {
+                uint16_t rw = r.x_max - r.x_min;
+                uint16_t rh = r.y_max - r.y_min;
+                if(rw > ThreadManager::MIN_START && rh > ThreadManager::MIN_START) {
+                        thrManager->draw_rect(*this, r);
+                        return;
+                }
+        }
         //DEBUG_OUTPUT("DRAWING RECT (%u, %u) - (%u, %u)\n", r.x_min, r.y_min, r.x_max, r.y_max);
         for(uint16_t j = r.y_min; j <= r.y_max; ++j) {
                 for(uint16_t i = r.x_min; i <= r.x_max; ++i) {
