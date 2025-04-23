@@ -144,38 +144,33 @@ The distributions do not appear to follow a normal distribution, however we have
 Let's take a quick look on scatter plots and Pearson correlation coefficient to make some assumptions about linear trends between SAT scores and other variables.
 
 ```{r}
+cor_with_sat <- cor_matrix["SAT", ]
+
 plot(case1201$Takers, case1201$SAT,
-     main = "SAT Score X % of Test Takers",
+     main = sprintf("SAT Score X %% of Test Takers (r=%.3f)", cor_with_sat["Takers"]),
      xlab = "Takers (%)",
      ylab = "SAT Score",
      col = "darkgreen", pch = 19)
 
 plot(case1201$Income, case1201$SAT,
-     main = "SAT Score X Median Income",
+     main = sprintf("SAT Score X Median Income (r=%.3f)", cor_with_sat["Income"]),
      xlab = "Income ($100s)",
      ylab = "SAT Score",
      col = "orangered", pch = 19)
 
 plot(case1201$Rank, case1201$SAT,
-     main = "SAT Score X Secondary School Rank",
+     main = sprintf("SAT Score X Secondary School Rank (r=%.3f)", cor_with_sat["Rank"]),
      xlab = "Rank",
      ylab = "SAT Score",
      col = "purple", pch = 19)
 
 plot(case1201$Years, case1201$SAT,
-     main = "SAT Score X Average Years of Education",
+     main = sprintf("SAT Score X Average Years of Education (r=%.3f)", cor_with_sat["Years"]),
      xlab = "Years of Education",
      ylab = "SAT Score",
      col = "orange", pch = 19)
 
 ```
-
-```{r}
-print("Correlation with Sat")
-cor_with_sat <- cor_matrix["SAT", ]
-print(cor_with_sat)
-```
-
 Based on the plots above and strong enough positive correlation coefficient **(0.88)** we chose **Rank** as a regressor for the second task.
 
 ## Numerical Regressor
@@ -235,9 +230,11 @@ boxplot(SAT ~ ExpendCat, data = case1201,
         main = "SAT Scores by Expenditure Category",
         xlab = "Expenditure Category", ylab = "SAT Score",
         col = c("lightblue", "lightgreen", "lightcoral"))
+means <- tapply(case1201$SAT,case1201$ExpendCat,mean)
+points(means,col="black",pch=17)
 ```
 
-It is hard to tell if the means are different, **High** category only shows, that disribution there is skewed. So we will apply analysis of variance on **ExpendCat** to test:
+It is hard to tell if the means are statistically significantly different, **High** category only shows, that disribution there is skewed. So we will apply analysis of variance on **ExpendCat** to test:
 
 $$
 H_0: \text{The mean SAT scores are the same across all categories.}\\
@@ -377,7 +374,7 @@ Use of linear model has several assumptions:
 
 -   **Linearity** (we checked it with graphs)
 
--   **Independence** of observations (is true)
+-   **Independence** of observations (is trusted from Sleuth2)
 
 -   **Normality** of the residuals
 
@@ -419,7 +416,14 @@ Null hypothesis is that **distribution of the residuals is normal** and with tha
 plot(final_model, which=3)
 ```
 
-The red approximation line slightly increases with time, so maybe we still have homoscedastic data. We can verify it with Breusch-Pagan test
+The red approximation line slightly increases with time, so maybe we still have homoscedastic data. Let us formulate hypotheses for further test.
+
+$$
+H_0: \text{Residuals have constant variance (Homoscedasticity)}\\
+H_A: \text{Residuals' variance raise with regressand values (Heteroscedasticity)}
+$$
+
+We can conduct Breusch-Pagan test to check these hypotheses.
 
 ```{r}
 bptest(final_model)
@@ -455,4 +459,4 @@ All adjusted GVIF values are $<2$ which in literature is considered good result,
 
 ## Conclusion
 
-Our final selection of regressors resulted in a linear model that effectively captured the structure of the data, while also satisfying all the assumptions necessary for its validity, which is really surprising. This model can be used to predict SAT scores in a state only with knowledge about **Rank**, **ExpendCat**, **Takers** with high accuracy, which is great.
+Our final selection of regressors resulted in a linear model that effectively captured the structure of the data, while also satisfying all the assumptions necessary for its validity, which is really surprising. This model can be used to predict SAT scores in a state only with knowledge about **Rank**, **ExpendCat**, **Takers** with high R2 score, which is great.
