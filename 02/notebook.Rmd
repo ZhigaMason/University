@@ -171,6 +171,7 @@ plot(case1201$Years, case1201$SAT,
      col = "orange", pch = 19)
 
 ```
+
 Based on the plots above and strong enough positive correlation coefficient **(0.88)** we chose **Rank** as a regressor for the second task.
 
 ## Numerical Regressor
@@ -455,7 +456,7 @@ An overview of how much each regressor depends on the others is provided by the 
 vif(final_model, type = "predictor")
 ```
 
-All adjusted GVIF values are $<2$ which in literature is considered good result, which indicates, that the **colinearity is weak**.
+All adjusted GVIF values are $<2$ which in literature is considered a good result, which indicates, that the **colinearity is weak**.
 
 ## Conclusion
 
