@@ -16,7 +16,7 @@ DEBUG_DIR=_debug
 
 OBJ = cli.out debug_cli.out
 
-all: $(OBJ)
+all: $(OBJ) report.pdf
 
 cli.out: $(SRC:.cpp=.o)
 	$(LD) $(LDFLAGS) -o $@ $^
@@ -31,6 +31,11 @@ $(DEBUG_DIR)/%.o: %.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) $(DEBUGFLAGS) -c -o $@ $<
 
+report.pdf: report.tex
+	latexmk
+	latexmk -c
+
 clean:
 	rm -f *.out $(SRC:.cpp=.o)
 	rm -rf $(DEBUG_DIR)
+	-latexmk -c
