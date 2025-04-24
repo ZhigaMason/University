@@ -32,5 +32,5 @@ $(DEBUG_DIR)/%.o: %.cpp
 	$(CXX) $(CXXFLAGS) $(DEBUGFLAGS) -c -o $@ $<
 
 clean:
-	-rm *.out $(SRC:.cpp=.o)
-	-rm -r $(DEBUG_DIR)
+	rm -f *.out $(SRC:.cpp=.o)
+	rm -rf $(DEBUG_DIR)

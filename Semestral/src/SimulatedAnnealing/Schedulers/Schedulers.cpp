@@ -20,13 +20,13 @@ scheduler_factory_type LinearFactory = [] (double p, double start_temp) -> sched
 };
 
 const std::unordered_map<std::string, scheduler_factory_type> scheduler_factories = {
-        {"G&G",  GermanNGermanFactory},
+        {"GnG",  GermanNGermanFactory},
         {"Geom", GeometricFactory},
         {"Lin",  LinearFactory}
 };
 
 const std::unordered_map<std::string, double> default_factories_parameters  = {
-        {"G&G",  1.0},
+        {"GnG",  1.0},
         {"Geom", 0.995},
         {"Lin",  -0.01}
 };

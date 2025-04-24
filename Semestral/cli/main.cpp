@@ -45,8 +45,8 @@ Options:
                          default: 0
 
         --scheduler  - temperature scheduler.
-                         options: G&G, Geom, Lin
-                         default: G&G
+                         options: GnG, Geom, Lin
+                         default: GnG
 
         -p/--params  - parameters of schedulers.
                         options and defaults:
@@ -98,7 +98,7 @@ int32_t input(int argc, char ** argv, std::string & filein, std::string & fileou
         static constexpr char OPT_STR[] = "hf:o:p:t:i:r:s:w:";
 
         int32_t c = -1;
-        std::string scheduler = "G&G";
+        std::string scheduler = "GnG";
         double params        = NAN;
         double temperature   = 1000;
 
