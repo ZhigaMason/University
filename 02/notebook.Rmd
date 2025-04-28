@@ -233,9 +233,10 @@ boxplot(SAT ~ ExpendCat, data = case1201,
         col = c("lightblue", "lightgreen", "lightcoral"))
 means <- tapply(case1201$SAT,case1201$ExpendCat,mean)
 points(means,col="black",pch=17)
+legend("bottomright", pch=17, "Means of Categories")
 ```
 
-It is hard to tell if the means are statistically significantly different, **High** category only shows, that disribution there is skewed. So we will apply analysis of variance on **ExpendCat** to test:
+It is hard to tell if the means (indicated by triangles on the box-plots) are statistically significantly different, **High** category only shows, that disribution there is skewed. So we will apply analysis of variance on **ExpendCat** to test:
 
 $$
 H_0: \text{The mean SAT scores are the same across all categories.}\\
@@ -440,13 +441,21 @@ We can take a look at cook's distance which say how different observation affect
 plot(final_model, which=4)
 ```
 
+
+Let us take a look on the samples that are discussed.
+```{r}
+largest_cookd <-  case1201[c(28, 47, 50),]
+largest_cookd$modeled_SAT <-  predict(final_model, newdata=largest_cookd)
+largest_cookd <- largest_cookd[c("State", "SAT", "modeled_SAT")]
+largest_cookd
+```
 We see three outliers, but it is hard to tell how strong their effect is compared to other observations, so we will plot their leverage.
 
 ```{r}
 plot(final_model, which=5)
 ```
 
-Observation with number $47$ lies closest to the border of Cook’s distance, but it doesn’t fall outside of the dashed line. This means **there are no influential points** in our regression model.
+Observation with number $47$ lies closest to the border of Cook’s distance, but it doesn’t fall outside of the dashed line. This means **there are no influential points** in our regression model. Sample $47$ is Hawaii, a state far away from continent and the latest addition to union, so it is an "outlier" in USA not only SAT score regression.
 
 ### Multicolinearity
 
