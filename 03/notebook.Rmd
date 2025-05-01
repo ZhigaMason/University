@@ -1,6 +1,10 @@
 ---
 title: "notebook"
 output: html_document
+authors:
+    - Oleksand Slyvka
+    - Illia Lyhin
+    - Maksym Khavil
 date: "2025-04-30"
 ---
 
@@ -21,6 +25,7 @@ library(rnaturalearth)
 # remotes::install_github("ropensci/rnaturalearthhires")
 library(rnaturalearthhires)
 library(countrycode)
+library(car)
 ```
 
 ## Importing & Explaining Average Salary
@@ -80,11 +85,14 @@ sumtable(
 
 data %>% slice_max(order_by = values, n = 7)
 ```
-<!-- We can see that employees in countries on the east are generally paid less, histogram agrees with map in spike of 10-20k euros, very similiar to what we see on the map. Mean is 28k euros, while median is only 22k, so we might expect that there are some countries where employees are paid a lot higher. Our last plot shows that those countries are **Luxemburg** and **Denmark**, first one is famous for its banks and Denmark is known to be a money harbor for its stability and location. -->
+
+We can see that employees in countries on the east are generally paid less, histogram agrees with map in spike of 10-20k euros, very similiar to what we see on the map. Mean is 28k euros, while median is only 22k, so we might expect that there are some countries where employees are paid a lot higher. Our last plot shows that those countries are **Luxemburg** and **Denmark**, first one is famous for its banks and Denmark is known to be a money harbor for its stability and location.
 
 ## Regressors' Descriptions
 
 ### Distance to Voronezh
+
+Our first regressor will be a distance between country's capital and city of Voronezh. We expect it to positively correlate with **Average Salary**. To construct such feature we would firstly get coordinates of each country's capital.
 
 ```{r}
 # Load populated places, including capitals
@@ -100,8 +108,9 @@ capital_coords <- capital_coords %>%
     lon = st_coordinates(geometry)[, 1],
     lat = st_coordinates(geometry)[, 2]
   )
-
 ```
+
+With coordinates on our hand we will compute the distance using `st_distance` function from `sf`. This implementation accounts for Earth's curvature and computes spherical distance.
 
 ```{r}
 points <- st_as_sf(capital_coords, capital_coords = c("lon", "lat"), crs = 4326)
@@ -115,6 +124,8 @@ data <- left_join(data, points, by=setNames("country","geo"))
 data
 ```
 
+Let us do a quick data analysis of the variable. This will include drawing a map of it, its histogram, basic descriptive statistics and a scatter plot against **Average Salary**.
+
 ```{r}
 plot_eu(data, "distance_to_voronezh") +
     scale_fill_gradient(
@@ -123,7 +134,13 @@ plot_eu(data, "distance_to_voronezh") +
     ) +
     guides(fill = guide_colorbar(barwidth = 1, barheight = 15))
 
-hist(data$distance_to_voronezh, main="Histogram of distance to Voronezh (km)", xlab="distance to Voronezh (km)")
+hist(
+    data$distance_to_voronezh, 
+    main="Histogram of distance to Voronezh (km)",
+    xlab="distance to Voronezh (km)",
+    col="gray",
+    breaks=1000 * (1:6)
+)
 
 plot(
     data$distance_to_voronezh, data$values,
@@ -136,11 +153,16 @@ plot(
 sumtable(
   data, 'distance_to_voronezh',
   out='kable',
-  summ=summ
+  summ=summ,
+  factor.numeric = TRUE
 )
 ```
 
+This variable is purely geographical, so we obtain a white-to-black gradient spanning all Europe. Histograms is skewed to the left, it is a result of greater number of countries located on the east of EU. As we have expected **Distance to Voronezh** correlates positively with **Average Salary**, Pearson's coefficient is not large (less than 0.5), but it shows a connection, that the further away a country is from Voronezh, the higher Salary can be expected. Lastly, descriptive statistics agree with an observation about histogram and show a mean of $3200$ and standard deviation of $776$ kilometers.
+
 ### Illia Lyhin's preference to visit named country for a leisure week (on 01.05.2018 at 16:00)
+
+Illia Lyhin, being one of the authors of this project, is a stellar traveller, so surely he has an opinion whether he wants to visit a country or not. We assume it is a good indication about country's **Average Salary**, as Lyhin is rarely happens to be wrong about topics touching monetary relationship. Below we present his view.
 
 ```{r}
 lyhin_lvls = c("Low", "Medium", "High")
@@ -151,6 +173,8 @@ data[data$geo %in% c("Belgium", "Bulgaria", "Hungary", "Romania", "Slovakia", "L
 data$lyhin_preference <- factor(data$lyhin_preference, levels=lyhin_lvls, ordered=TRUE)
 data
 ```
+
+With data on our hands let us plot it.
 
 ```{r}
 
@@ -189,7 +213,11 @@ data %>%
   )
 ```
 
+There is nothing to note about individual records, except excellent choices for a vacation. Box plots show that low priority countries have, indeed, lower **Average Salary**, though there is a flyer, which must be Belgium. Medium and high priority countries behave very similarly. High has a larger spread with standard deviation of $18.5k$ euros.
+
 ### Number of people in penitentiary system
+
+One could hypothesis that **Average Salary** is a measure of stability and well-being. Number of people in penitentiary system can be another measure of those qualities. It is usually expected that prosperous countries have less crime, so prisons are not as filled as ones in developing countries. We will use [crim_pris_age](https://ec.europa.eu/eurostat/databrowser/view/CRIM_PRIS_AGE/default/table?lang=en&category=crim.crim_pris) Eurostat dataset for this data, it provides more data than we need so we will selected rows that we need. Criteria are year 2018 and total population (both in terms of sex and age). We also can choose between different units, we have decided on "Per hundred thousands inhabitants", because it is a relative measure, so it is adequate to compare it between different countries. We expect **Prisoners per 100K** to negatively correlate with **Average Salary**.
 
 ```{r warning=FALSE}
 crim <- get_eurostat("crim_pris_age")
@@ -201,6 +229,8 @@ data <- left_join(data, crim, by="geo")
 data
 ```
 
+We will conduct the same data analysis for **Prisoners per 100K** as we have done for **Distance to Voronezh**.
+
 ```{r}
 plot_eu(data, "prisoners_per_100K") +
     scale_fill_gradient(
@@ -209,7 +239,7 @@ plot_eu(data, "prisoners_per_100K") +
     ) +
     guides(fill = guide_colorbar(barwidth = 1, barheight = 15))
 
-hist(data$prisoners_per_100K, main="Histogram of prisoners per 100K", col="red", xlab="Prisoners per 100K")
+hist(data$prisoners_per_100K, main="Histogram of Prisoners per 100K", col="red", xlab="Prisoners per 100K")
 
 plot(
     data$prisoners_per_100K, data$values,
@@ -226,8 +256,11 @@ sumtable(
   factor.numeric = TRUE
 )
 ```
+Number of prisoners is much higher in eastern countries. As a result distribution is skewed left with mean $120$, median $104$ and standard deviation of $51$ prisoners per hundred thousands inhabitants.
 
-### Most prominent source of profit in NACEr2 A10 Supercategories
+### Most Profitable NACEr2 A10 Cateogry
+
+We will use one more categorical feature, the most profitable NACEr2 A10 category. It must differentiate differently structured economies, as different countries have different sources of profit. For that we will use [nama_10_a10](https://ec.europa.eu/eurostat/databrowser/view/nama_10_a10/default/table?lang=en) Eurostat dataset. Categories presented in this dataset are not disjoint, but we will categories that are a part of a bigger union of sectors. As a unit of measure we will use Percents of GDP to stay relative to countries' scale.
 
 ```{r}
 nace <- get_eurostat("nama_10_a10", select_time="A")
@@ -256,8 +289,9 @@ unique(data$nace_r2)
 data
 ```
 
-```{r}
+Let us now display those classes and **Average Salary** in them.
 
+```{r}
 color.fin = "#E77D88"
 color.ind = "#BDE77D"
 color.pub = "#7DE7DC"
@@ -307,7 +341,11 @@ data %>%
   )
 ```
 
-### Daily Internet Usage 
+Most of countries fall into 3 categories *Industry*, *Administration* and *Wholesale* with Luxemburg lonely holding to *Finance*. This leads to a flattened boxplot of **Finance**. Pooled average of *Administration* is the highest with *Industry* coming second and *Wholesale* coming last. *Industry* sector also shows the biggest spread with standard deviation of $16k$ euros.
+
+### Daily Internet Use (%)
+
+Our fifth feature is **Daily Internet Use** coming from Eurostat dataset [isoc_ci_ifp_fu](https://ec.europa.eu/eurostat/databrowser/view/isoc_ci_ifp_fu/default/table?lang=en). We have no expectation for this variable to be related to **Average Salary**, because internet connection is both cheap and wide spread.
 
 ```{r}
 ifp <- get_eurostat("isoc_ci_ifp_fu")
@@ -327,7 +365,13 @@ plot_eu(data, "daily_internet_usage_pc") +
     ) +
     guides(fill = guide_colorbar(barwidth = 1, barheight = 15))
 
-hist(data$daily_internet_usage_pc, main="Histogrma of Daily Internet Usage (%)", col="darkgreen", xlab="Daily Internet Usage (%)")
+hist(
+    data$daily_internet_usage_pc, 
+    main="Histogrma of Daily Internet Usage (%)", 
+    col="darkgreen", 
+    xlab="Daily Internet Usage (%)",
+    breaks=(10 * (0:5)) + 50
+)
 
 plot(
     data$daily_internet_usage_pc, data$values,
@@ -345,16 +389,32 @@ sumtable(
 )
 ```
 
+**Daily Internet Usage** has a normal-looking distribution with heart of online activity at Denmark. Surprisingly internet usage has strong positive linear correlation with **Average Salary**.
+
+Let us take a look at the data on our hands and proceed to investigate dependency between regressors.
 ```{r}
 data
 ```
-## Testing Multicollinearity
+
+## Testing Independance
 
 ```{r}
 numeric_data <- data[sapply(data, is.numeric)]
 
 cor_matrix <- cor(numeric_data, use = "complete.obs")
 
-corrplot(cor_matrix, addCoef.col = "goldenrod4", tl.col = "black")
+corrplot(
+    cor_matrix, 
+    addCoef.col = "black", 
+    tl.col = "black"
+)
 ```
 
+```{r}
+model <- lm(values ~ distance_to_voronezh + lyhin_preference + prisoners_per_100K + nace_r2_sector + daily_internet_usage_pc, data = data)
+vif(model, type='predictor')
+```
+
+gotta do smth about categorical variables
+```{r}
+```
