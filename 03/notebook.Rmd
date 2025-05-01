@@ -1,0 +1,360 @@
+---
+title: "notebook"
+output: html_document
+date: "2025-04-30"
+---
+
+We have chosen Oleksandr Slyvka as our representative, his M value is 6. This gives us year 2018 to analyse.
+
+## Libraries
+
+```{r setup, include=TRUE}
+library(eurostat)
+library(ggplot2)
+library(cowplot)
+library(corrplot)
+library(vtable)
+library(grid)
+library(sf)
+library(dplyr)
+library(rnaturalearth)
+# remotes::install_github("ropensci/rnaturalearthhires")
+library(rnaturalearthhires)
+library(countrycode)
+```
+
+## Importing & Explaining Average Salary
+
+```{r}
+data <- get_eurostat("nama_10_fte", time_format = "num")
+data <- data[(data$unit == "EUR") & (data$TIME_PERIOD == 2018),]
+data <- data[c("geo", "values")]
+data
+```
+
+Our data includes records for *Euro Area (EA20)* and *European Union (EU27_2020)*, more over those are records that had not came from year 2018. Those are not standalone countries, so we better delete them. Also it uses *EL* for Greece (Ellada), we will rename it. Also we have no possession of a record for Netherlands.
+
+Lastly we will replace country codes with country names.
+
+```{r}
+data <- data[(data$geo != "EA20") & (data$geo != "EU27_2020"),]
+data[(data$geo == "EL"), "geo"] <- "GR"
+data$geo <- countrycode(data$geo, origin = 'iso2c', destination = 'country.name')
+data
+```
+
+Let us define a generic function that will help us display data on a map of European Union.
+
+```{r warning=FALSE}
+world_map <- ne_countries(scale = "large", returnclass = 'sf')
+europe_bbox <- st_bbox(c(xmin = -20, xmax = 40, ymax = 75, ymin = 30), crs = st_crs(4326))
+eu_map <- world_map %>% filter(name %in% data$geo) %>%  st_crop(europe_bbox)
+
+plot_eu <- function(mydata, col, by_data="geo", by_map="name") {
+    disp <- left_join(eu_map, mydata, by = setNames(by_data, by_map))
+    return (ggplot(disp) +  geom_sf(aes(fill=.data[[col]])) + theme_minimal())
+}
+```
+
+Now we will take a look at a map with **Average Salaries**, histogram of the variable and summary of mean, standard deviation, limits, quartilse and IQR.
+
+```{r}
+plot_eu(data, "values") +
+    scale_fill_viridis_c(
+      name="Average Salary", 
+      guide = guide_colorbar(barheight = 15, barwidth = 1),
+      breaks=10000*(1:6)
+    )
+
+summ <- c('mean(x)', 'sd(x)', 'min(x)', 'pctile(x)[25]',
+          'median(x)', 'pctile(x)[75]', 'max(x)', 'IQR(x)'
+)
+
+hist(data$values, main="Histogram of Average Salary", col="cyan")
+
+sumtable(
+  data, 'values',
+  out='kable',
+  summ=summ
+)
+
+data %>% slice_max(order_by = values, n = 7)
+```
+<!-- We can see that employees in countries on the east are generally paid less, histogram agrees with map in spike of 10-20k euros, very similiar to what we see on the map. Mean is 28k euros, while median is only 22k, so we might expect that there are some countries where employees are paid a lot higher. Our last plot shows that those countries are **Luxemburg** and **Denmark**, first one is famous for its banks and Denmark is known to be a money harbor for its stability and location. -->
+
+## Regressors' Descriptions
+
+### Distance to Voronezh
+
+```{r}
+# Load populated places, including capitals
+places <- ne_download(scale = "small", type = "populated_places", category = "cultural", returnclass = "sf")
+capitals <- places %>%
+  filter(FEATURECLA == "Admin-0 capital", ADM0NAME %in% data$geo)
+
+# View capital names and coordinates
+capital_coords <- capitals %>% select(name = NAME, country = ADM0NAME, geometry)
+
+capital_coords <- capital_coords %>%
+  mutate(
+    lon = st_coordinates(geometry)[, 1],
+    lat = st_coordinates(geometry)[, 2]
+  )
+
+```
+
+```{r}
+points <- st_as_sf(capital_coords, capital_coords = c("lon", "lat"), crs = 4326)
+
+voronezh <- st_sfc(st_point(c(51.67204, 39.1843)), crs = 4326)
+
+points$distance_to_voronezh <- as.numeric(st_distance(points, voronezh)) / 1000
+points <- as.data.frame(points)[c("country", "distance_to_voronezh")]
+points
+data <- left_join(data, points, by=setNames("country","geo"))
+data
+```
+
+```{r}
+plot_eu(data, "distance_to_voronezh") +
+    scale_fill_gradient(
+        name = "Distance to voronezh (km)",
+        low = "black", high = "white" 
+    ) +
+    guides(fill = guide_colorbar(barwidth = 1, barheight = 15))
+
+hist(data$distance_to_voronezh, main="Histogram of distance to Voronezh (km)", xlab="distance to Voronezh (km)")
+
+plot(
+    data$distance_to_voronezh, data$values,
+    main=sprintf("Distance to Voronezh (km) X Average Salary (r=%.2f)", cor(data$distance_to_voronezh, data$values)),
+    xlab="Distance to Voronezh (km)",
+    ylab="Average Salary",
+    col="black", pch=19
+)
+
+sumtable(
+  data, 'distance_to_voronezh',
+  out='kable',
+  summ=summ
+)
+```
+
+### Illia Lyhin's preference to visit named country for a leisure week (on 01.05.2018 at 16:00)
+
+```{r}
+lyhin_lvls = c("Low", "Medium", "High")
+
+data$lyhin_preference = "Medium"
+data[data$geo %in% c("Austria", "Cyprus", "Czechia", "Denmark", "Ireland", "Portugal"),]$lyhin_preference = "High"
+data[data$geo %in% c("Belgium", "Bulgaria", "Hungary", "Romania", "Slovakia", "Lithuania", "Latvia"),]$lyhin_preference = "Low"
+data$lyhin_preference <- factor(data$lyhin_preference, levels=lyhin_lvls, ordered=TRUE)
+data
+```
+
+```{r}
+
+color.low = "#EFEA90"
+color.mid = "#DFD420"
+color.hig = "#B6AC1A"
+
+plot_eu(data, "lyhin_preference") +
+  scale_fill_manual(
+    name = "Illia Lyhin's Preference",
+    values = c(
+      "Low" = color.low,
+      "Medium" = color.mid,
+      "High" = color.hig
+    )
+  )
+
+par(mar = c(5, 4, 4, 8), xpd = TRUE)
+boxplot(
+    values ~ lyhin_preference, data=data,
+    main="Average Salary by Illia Lyhin's Preference",
+    ylab="Average Salary",
+    xlab="Illia Lyhin's Preference",
+    col=c(color.low, color.mid, color.hig)
+)
+
+data %>%
+  group_by(lyhin_preference) %>%
+  summarise(
+    count = n(),
+    mean = mean(values),
+    sd = sd(values),
+    min = min(values),
+    median=median(values),
+    max = max(values)
+  )
+```
+
+### Number of people in penitentiary system
+
+```{r warning=FALSE}
+crim <- get_eurostat("crim_pris_age")
+crim <- crim[(crim$age == "TOTAL") & (crim$sex == "T") & (as.Date('2018-01-01') <= crim$TIME_PERIOD) & (crim$TIME_PERIOD < as.Date('2019-01-01')) & (crim$unit == "P_HTHAB"),]
+crim[(crim$geo == "EL"), "geo"] <- "GR"
+crim$geo <- countrycode(crim$geo, origin = 'iso2c', destination = 'country.name')
+crim <- crim[c("geo", "values")] %>% rename(prisoners_per_100K=values)
+data <- left_join(data, crim, by="geo")
+data
+```
+
+```{r}
+plot_eu(data, "prisoners_per_100K") +
+    scale_fill_gradient(
+        name = "Prisoners per 100K",
+        low = "white", high = "red" 
+    ) +
+    guides(fill = guide_colorbar(barwidth = 1, barheight = 15))
+
+hist(data$prisoners_per_100K, main="Histogram of prisoners per 100K", col="red", xlab="Prisoners per 100K")
+
+plot(
+    data$prisoners_per_100K, data$values,
+    main=sprintf("Prisoners per 100K X Average Salary (r=%.2f)", cor(data$prisoners_per_100K, data$values)),
+    xlab="Prisoners per 100K",
+    ylab="Average Salary",
+    col="red", pch=19
+)
+
+sumtable(
+  data, 'prisoners_per_100K',
+  out='kable',
+  summ=summ,
+  factor.numeric = TRUE
+)
+```
+
+### Most prominent source of profit in NACEr2 A10 Supercategories
+
+```{r}
+nace <- get_eurostat("nama_10_a10", select_time="A")
+nace2 <- nace[(nace$na_item == "B1G") & (as.Date('2018-01-01') <= nace$TIME_PERIOD) & (nace$TIME_PERIOD < as.Date('2019-01-01')) & (nace$unit == "PC_GDP"),]
+nace2 <- nace2 %>% filter(nace_r2 != "TOTAL")
+nace2 <- nace2 %>%
+  mutate(nace_r2_sector = recode(nace_r2,
+    "A"   = "Agriculture, forestry and fishing",
+    "B-E" = "Industry",
+    "F"   = "Construction",
+    "G-I" = "Wholesale, retail, transport, accommodation",
+    "J"   = "Information and communication",
+    "K"   = "Financial and insurance activities",
+    "L"   = "Real estate activities",
+    "M-N" = "Professional & admin services",
+    "O-Q" = "Public administration, education, health",
+    "R-U" = "Arts, entertainment, other services"
+  ))
+nace2 <- nace2 %>% group_by(geo) %>% top_n(1,values) %>% select(geo, nace_r2_sector)
+nace2[(nace2$geo == "EL"), "geo"] <- "GR"
+nace2$geo <- countrycode(nace2$geo, origin = 'iso2c', destination = 'country.name')
+data <- left_join(data, nace2, by="geo")
+nace_r2_lvls =sort(unique(data$nace_r2_sector))
+data$nace_r2_sector <- factor(data$nace_r2_sector, levels=nace_r2_lvls, ordered = FALSE)
+unique(data$nace_r2)
+data
+```
+
+```{r}
+
+color.fin = "#E77D88"
+color.ind = "#BDE77D"
+color.pub = "#7DE7DC"
+color.ret = "#A77DE7"
+
+plot_eu(data, "nace_r2_sector") +
+  scale_fill_manual(
+    name = "Most Profitable NACE2 A10 Categories",
+    values = c(
+      "Financial and insurance activities" = color.fin,
+      "Industry" = color.ind,
+      "Public administration, education, health" = color.pub,
+      "Wholesale, retail, transport, accommodation" = color.ret
+    )
+  )
+
+data.nace2.fin = data[data$nace_r2_sector == "Financial and insurance activities",]
+data.nace2.ind = data[data$nace_r2_sector == "Industry",]
+data.nace2.pub = data[data$nace_r2_sector == "Public administration, education, health",]
+data.nace2.ret = data[data$nace_r2_sector == "Wholesale, retail, transport, accommodation",]
+
+par(mar = c(5, 4, 4, 8), xpd = TRUE)
+boxplot(
+    values ~ nace_r2_sector, data=data,
+    col=c(color.fin, color.ind, color.pub, color.ret),
+    main="Average Salary by Most Profitable NACE2 A10 Categories",
+    ylab="Average Salary",
+    xaxt='n'
+)
+
+legend(
+    "topright", inset=c(-0.2, 0),
+    legend = c("Finance", "Industry", "Administration", "Wholesale"), 
+    fill = c(color.fin, color.ind, color.pub, color.ret), 
+    title = "NACE2 A10 Categories"
+)
+
+data %>%
+  group_by(nace_r2_sector) %>%
+  summarise(
+    count = n(),
+    mean = mean(values),
+    sd = sd(values),
+    min = min(values),
+    median=median(values),
+    max = max(values)
+  )
+```
+
+### Daily Internet Usage 
+
+```{r}
+ifp <- get_eurostat("isoc_ci_ifp_fu")
+ifp <- ifp[(as.Date('2018-01-01') <= ifp$TIME_PERIOD) & (ifp$TIME_PERIOD < as.Date('2019-01-01')) & (ifp$unit == "PC_IND") & (ifp$indic_is == "I_IDAY") & (ifp$ind_type == "IND_TOTAL"),]
+ifp[(ifp$geo == "EL"), "geo"] <- "GR"
+ifp$geo <- countrycode(ifp$geo, origin = 'iso2c', destination = 'country.name')
+ifp <- ifp[c("geo", "values")] %>% rename(daily_internet_usage_pc=values)
+data <- left_join(data, ifp, by="geo")
+data
+```
+
+```{r}
+plot_eu(data, "daily_internet_usage_pc") +
+    scale_fill_gradient(
+        name = "Daily Internet Usage (%)",
+        low = "cyan", high = "darkgreen" 
+    ) +
+    guides(fill = guide_colorbar(barwidth = 1, barheight = 15))
+
+hist(data$daily_internet_usage_pc, main="Histogrma of Daily Internet Usage (%)", col="darkgreen", xlab="Daily Internet Usage (%)")
+
+plot(
+    data$daily_internet_usage_pc, data$values,
+    main=sprintf("Daily Internet Usage (%%) X Average Salary (r=%.2f)", cor(data$daily_internet_usage_pc, data$values)),
+    xlab="Daily Internet Usage (%)",
+    ylab="Average Salary",
+    col="darkgreen", pch=19
+)
+
+sumtable(
+  data, 'daily_internet_usage_pc',
+  out='kable',
+  summ=summ,
+  factor.numeric = TRUE
+)
+```
+
+```{r}
+data
+```
+## Testing Multicollinearity
+
+```{r}
+numeric_data <- data[sapply(data, is.numeric)]
+
+cor_matrix <- cor(numeric_data, use = "complete.obs")
+
+corrplot(cor_matrix, addCoef.col = "goldenrod4", tl.col = "black")
+```
+
