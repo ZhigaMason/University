@@ -26,6 +26,7 @@ library(rnaturalearth)
 library(rnaturalearthhires)
 library(countrycode)
 library(car)
+library(lmtest)
 ```
 
 ## Importing & Explaining Average Salary
@@ -267,7 +268,7 @@ nace <- get_eurostat("nama_10_a10", select_time="A")
 nace2 <- nace[(nace$na_item == "B1G") & (as.Date('2018-01-01') <= nace$TIME_PERIOD) & (nace$TIME_PERIOD < as.Date('2019-01-01')) & (nace$unit == "PC_GDP"),]
 nace2 <- nace2 %>% filter(nace_r2 != "TOTAL")
 nace2 <- nace2 %>%
-  mutate(nace_r2_sector = recode(nace_r2,
+  mutate(nace_r2_sector = dplyr::recode(nace_r2,
     "A"   = "Agriculture, forestry and fishing",
     "B-E" = "Industry",
     "F"   = "Construction",
@@ -396,25 +397,89 @@ Let us take a look at the data on our hands and proceed to investigate dependenc
 data
 ```
 
-## Testing Independance
+### Testing Independance of Regressor
+
+I dont know what does it mean, like should we do $\chi^2$ test or smth
+
+## Modeling
 
 ```{r}
-numeric_data <- data[sapply(data, is.numeric)]
-
-cor_matrix <- cor(numeric_data, use = "complete.obs")
-
-corrplot(
-    cor_matrix, 
-    addCoef.col = "black", 
-    tl.col = "black"
-)
+full_model <- lm(values ~ distance_to_voronezh + lyhin_preference + prisoners_per_100K + nace_r2_sector + daily_internet_usage_pc, data=data)
+summary(full_model)
+print(sprintf("RMSE of model: %.2f", sqrt(mean(full_model$residuals ^ 2))))
 ```
+
+yap about individual regressors & R2-adj
+
+## Outliers
+
+```{r warning=FALSE}
+plot(full_model, which=4)
+plot(full_model, which=5)
+largest_cookd <-  data[c(4, 5, 22),]
+largest_cookd$modeled_values <-  predict(full_model, newdata=largest_cookd)
+largest_cookd <- largest_cookd[c("geo", "values", "modeled_values")]
+largest_cookd
+```
+
+yap about how portugal can suck deez nuts for bein a fking flyer
+
+### Multicolinearity
 
 ```{r}
-model <- lm(values ~ distance_to_voronezh + lyhin_preference + prisoners_per_100K + nace_r2_sector + daily_internet_usage_pc, data = data)
-vif(model, type='predictor')
+vif(full_model, type = "predictor")
 ```
 
-gotta do smth about categorical variables
+yap about no colinearity due to low adjusted GVIF
+
+### Homoscedasticity
+
 ```{r}
+plot(full_model, which=3)
+bptest(full_model)
+largest_scale <-  data[c(5, 22, 1),]
+largest_scale$modeled_values <-  predict(full_model, newdata=largest_scale)
+largest_scale <- largest_scale[c("geo", "values", "modeled_values")]
+largest_scale
 ```
+
+yap about how we actually pass test on 5% confidence level.
+
+### Normality of Residuals
+
+
+```{r warning=F}
+plot(full_model, which=1)
+plot(full_model, which=2)
+shapiro.test(full_model$residuals)
+```
+yap about good f-ing residuals
+
+### Choosing submodel
+
+```{r}
+step(lm(values ~ 1, data = data), 
+     scope = list(lower = ~ 1, upper = ~ distance_to_voronezh + lyhin_preference + prisoners_per_100K + nace_r2_sector + daily_internet_usage_pc), 
+     direction = "both", 
+     data = data)
+```
+
+yap about exclusion of Illia's preferance <!-- https://tenor.com/view/disintegrating-aughhh-gif-24532719 -->
+
+```{r}
+submodel <- lm(formula = values ~ daily_internet_usage_pc + prisoners_per_100K +  nace_r2_sector + distance_to_voronezh, data = data)
+summary(submodel)
+print(sprintf("RMSE of model: %.2f", sqrt(mean(submodel$residuals ^ 2))))
+```
+
+yap about lower variance & shitty intercept (fing luxemburg and bulgaria)
+
+```{r}
+anova(submodel, full_model)
+```
+
+yap about how fing great our model is
+
+## Conclusion
+
+YAP
