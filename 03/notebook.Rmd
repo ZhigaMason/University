@@ -402,7 +402,7 @@ data
 
 ### Testing Independance of Regressor
 
-I dont know what does it mean, like should we do $\chi^2$ test or smth
+TODO: I dont know what does it mean, like should we do $\chi^2$ test or smth
 
 ## Modeling
 
@@ -412,7 +412,33 @@ summary(full_model)
 print(sprintf("RMSE of model: %.2f", sqrt(mean(full_model$residuals ^ 2))))
 ```
 
-yap about individual regressors & R2-adj
+### **Individual Regressors**
+
+**Statistically Significant Predictors**:
+
+-   *distance_to_voronezh*: Each additional kilometer from Voronezh is associated with an increase of about **4 EUR** in average annual wages per person.
+
+-   *prisoners_per_100K*: An increase of one prisoner per 100 000 inhabitants corresponds to a decrease of roughly **99 EUR** in per‑capita annual wages.
+
+-   *nace_r2_sectorIndustry*: Regions where the predominant sector is Industry tend to have average annual wages lower by about **25 148 EUR** compared to the reference sector.
+
+-   *nace_r2_sectorPublic administration, education, health*: The Public administration, education, and health sector is associated with per‑capita wages around **20 932 EUR** below the baseline.
+
+-   *nace_r2_sectorWholesale, retail, transport, accommodation*: This sector shows the largest negative effect – approximately **29 737 EUR** lower average wages than the baseline.
+
+-   *daily_internet_usage_pc*: A one‑percentage‑point increase in daily internet usage is linked to about 763 EUR higher annual wages per person.
+
+**NOT Statistically Significant**:
+
+-   *lyhin_preference.L* and *lyhin_preference.Q*: These linear and quadratic contrasts for political preference do not significantly predict wage levels, suggesting **no clear effect on average annual wages**.
+
+### Model Performance
+
+-   **Adjusted R-squared: 0.8439 -** The model explains about 84.4% of the variability in average annual wages per capita, after accounting for the number of predictors.
+
+-   **RMSE: 5 219.36 EUR -** On average, predicted wages deviate from observed values by about 5 219 EUR, reflecting a reasonably tight fit given the scale of wages.
+
+This regression model indicates that **macro‑economic** and **demographic** factors are strong determinants of average annual wages per person (in EUR). Distance from Voronezh also plays a modest but **significant** role, while the preference of our dear Mr. Lyhin shows **no meaningful impact** on wages.
 
 ## Outliers
 
@@ -425,7 +451,14 @@ largest_cookd <- largest_cookd[c("geo", "values", "modeled_values")]
 largest_cookd
 ```
 
-yap about how portugal can suck deez nuts for bein a fking flyer
+The Cook's distance diagnostic flags Portugal (22) as one of the most influential observations in the model.\
+On the Residuals vs. Leverage plot, Portugal (22) sits in the lower‑right corner – characterized by:
+
+-   **High Leverage (\~0.5):** It lies far to the right on the horizontal axis, meaning Portugal's combination of predictor values is relatively unique compared to the rest of the data.
+
+-   **Large Standardized Residual (\~–2.2):** It's well below zero on the vertical axis, indicating the model's prediction overshoots the actual wage by over two standard deviations.
+
+-   **Outside the Cook's Distance Boundary (dashed lines):** Portugal crosses the 0.5 Cook's distance contour, confirming it has a disproportionately large influence on the fitted coefficients.
 
 ### Multicolinearity
 
@@ -433,7 +466,7 @@ yap about how portugal can suck deez nuts for bein a fking flyer
 vif(full_model, type = "predictor")
 ```
 
-yap about no colinearity due to low adjusted GVIF
+We can be confident that coefficient estimates and standard errors aren't being inflated by collinearity among these variables. (All scaled GVIFs are far below common concern thresholds).
 
 ### Homoscedasticity
 
@@ -446,7 +479,7 @@ largest_scale <- largest_scale[c("geo", "values", "modeled_values")]
 largest_scale
 ```
 
-yap about how we actually pass test on 5% confidence level.
+At the 5% significance level, we **fail to reject** the null hypothesis of homoscedasticity (constant variance), since $p=0.073>0.05$. In other words, there's no strong statistical evidence of heteroscedasticity in our model's residuals.
 
 ### Normality of Residuals
 
@@ -456,7 +489,15 @@ plot(full_model, which=2)
 shapiro.test(full_model$residuals)
 ```
 
-yap about good f-ing residuals
+Plots:
+
+1.  **Residuals vs. Fitted**: No obvious skew or systematic curvature in the residual–fitted plot.
+
+2.  **Normal Q–Q Plot**: Most points hug the 45° reference line, with only minor deviations at the extremes – consistent with approximate normality.
+
+**Shapiro–Wilk Test** - Since $p=0.6681>0.05$, we **fail to reject** the null hypothesis that the residuals come from a normal distribution.
+
+The model's residuals appear to be reasonably normally distributed, satisfying the normality assumption for linear regression.
 
 ### Choosing submodel
 
@@ -467,7 +508,31 @@ step(lm(values ~ 1, data = data),
      data = data)
 ```
 
-yap about exclusion of Illia's preferance ![](https://media1.tenor.com/m/AA5B4MH4aUsAAAAd/disintegrating-aughhh.gif){width="40"}
+**Key AIC Improvements**:
+
+-   Adding *daily_internet_usage_pc* dropped AIC from **505.45 to 482.97**, the largest single improvement.
+
+-   Then *prisoners_per_100K* further cut AIC to **475.40**.
+
+-   Including *nace_r2_sector* (all three dummy contrasts) brought AIC down to **466.54**.
+
+-   Finally *distance_to_voronezh* produced the lowest AIC of **460.91**
+
+So we can **interpret** those improvements as:
+
+-   **Internet Usage** and our very original **Distance to Voronezh** remain strong positive predictors.
+
+-   **Prisoner Rate** retains its negative association.
+
+-   **Sectoral Dummies** account for large inter‐sector wage differences and are also informative for the model.
+
+-   ***lyhin_preference*** was never retained, indicating it adds little explanatory power beyond these four core factors.
+
+### Exclusion of *lyhin_preference* ![](https://media1.tenor.com/m/AA5B4MH4aUsAAAAd/disintegrating-aughhh.gif){width="10"}
+
+In each step of the AIC‐driven selection process, adding the linear and quadratic contrasts for *lyhin_preference* failed to reduce the AIC beyond what was achieved with the core predictors. Moreover, in the full model, both the linear and quadratic terms of *lyhin_preference* had high p‑values, providing no evidence that preference of our good old Mr. Lyhin explains additional variation in average wages.
+
+Therefore, dropping *lyhin_preference* yields a simpler model without sacrificing explanatory power.
 
 ```{r}
 submodel <- lm(formula = values ~ daily_internet_usage_pc + prisoners_per_100K +  nace_r2_sector + distance_to_voronezh, data = data)
@@ -475,14 +540,18 @@ summary(submodel)
 print(sprintf("RMSE of model: %.2f", sqrt(mean(submodel$residuals ^ 2))))
 ```
 
-yap about lower variance & shitty intercept (fing luxemburg and bulgaria)
+### Submodel Model Performance
+
+-   **Adjusted R-squared: 0.8505 -** Explains **85.05%** of wage variability – slightly above the full model's 84.39%, despite dropping predictors.
+
+-   **RMSE: 5 401.03 EUR -** A modest increase from the full model's 5 219.36 EUR, reflecting a small trade‑off in average error for greater simplicity.
+
+The submodel maintains strong fit. It's balanced performance makes it a preferred choice for predicting annual wages.
 
 ```{r}
 anova(submodel, full_model)
 ```
 
-yap about how fing great our model is
+The partial F‐test confirms that adding the two *lyhin_preference* contrasts doesn’t significantly improve fit. Since $p>0.05$, we **fail to reject** the null hypothesis that the smaller model (without *lyhin_preference*) is as good as the full model. In other words, those two terms do not explain a statistically significant amount of additional variance, reinforcing their exclusion for simplicity.
 
 ## Conclusion
-
-YAP
