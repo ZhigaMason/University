@@ -467,7 +467,7 @@ step(lm(values ~ 1, data = data),
      data = data)
 ```
 
-yap about exclusion of Illia's preferance <!-- https://tenor.com/view/disintegrating-aughhh-gif-24532719 -->
+yap about exclusion of Illia's preferance ![](https://media1.tenor.com/m/AA5B4MH4aUsAAAAd/disintegrating-aughhh.gif){width="40"}
 
 ```{r}
 submodel <- lm(formula = values ~ daily_internet_usage_pc + prisoners_per_100K +  nace_r2_sector + distance_to_voronezh, data = data)
