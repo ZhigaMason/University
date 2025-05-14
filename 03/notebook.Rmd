@@ -22,7 +22,8 @@ library(grid)
 library(sf)
 library(dplyr)
 library(rnaturalearth)
-# remotes::install_github("ropensci/rnaturalearthhires")
+#install.packages("remotes")
+#remotes::install_github("ropensci/rnaturalearthhires")
 library(rnaturalearthhires)
 library(countrycode)
 library(car)
@@ -159,11 +160,11 @@ sumtable(
 )
 ```
 
-This variable is purely geographical, so we obtain a white-to-black gradient spanning all Europe. Histograms is skewed to the left, it is a result of greater number of countries located on the east of EU. As we have expected **Distance to Voronezh** correlates positively with **Average Salary**, Pearson's coefficient is not large (less than 0.5), but it shows a connection, that the further away a country is from Voronezh, the higher Salary can be expected. Lastly, descriptive statistics agree with an observation about histogram and show a mean of $3200$ and standard deviation of $776$ kilometers.
+This variable is purely geographical, so we obtain a white-to-black gradient spanning all Europe. Histogram is skewed to the left, it is a result of greater number of countries located on the east of EU. As we have expected **Distance to Voronezh** correlates positively with **Average Salary**, Pearson's coefficient is not large (less than 0.5), but it shows a connection, that the further away a country is from Voronezh, the higher Salary can be expected. Lastly, descriptive statistics agree with an observation about histogram and show a mean of $3200$ and standard deviation of $776$ kilometers.
 
 ### Illia Lyhin's preference to visit named country for a leisure week (on 01.05.2018 at 16:00)
 
-Illia Lyhin, being one of the authors of this project, is a stellar traveller, so surely he has an opinion whether he wants to visit a country or not. We assume it is a good indication about country's **Average Salary**, as Lyhin is rarely happens to be wrong about topics touching monetary relationship. Below we present his view.
+Illia Lyhin, being one of the authors of this project, is an inveterate traveller, so surely he has an opinion whether he wants to visit a country or not. We assume it is a good indication about country's **Average Salary**, as Mr. Lyhin is rarely happens to be wrong about topics touching monetary relationship. Below we present his view.
 
 ```{r}
 lyhin_lvls = c("Low", "Medium", "High")
@@ -218,7 +219,7 @@ There is nothing to note about individual records, except excellent choices for 
 
 ### Number of people in penitentiary system
 
-One could hypothesis that **Average Salary** is a measure of stability and well-being. Number of people in penitentiary system can be another measure of those qualities. It is usually expected that prosperous countries have less crime, so prisons are not as filled as ones in developing countries. We will use [crim_pris_age](https://ec.europa.eu/eurostat/databrowser/view/CRIM_PRIS_AGE/default/table?lang=en&category=crim.crim_pris) Eurostat dataset for this data, it provides more data than we need so we will selected rows that we need. Criteria are year 2018 and total population (both in terms of sex and age). We also can choose between different units, we have decided on "Per hundred thousands inhabitants", because it is a relative measure, so it is adequate to compare it between different countries. We expect **Prisoners per 100K** to negatively correlate with **Average Salary**.
+One could hypothesize that **Average Salary** is a measure of stability and well-being. A number of people in the penitentiary system can be another measure of those qualities. It is usually expected that prosperous countries have less crime, so prisons are not as full as those in developing countries. We will use [crim_pris_age](https://ec.europa.eu/eurostat/databrowser/view/CRIM_PRIS_AGE/default/table?lang=en&category=crim.crim_pris) Eurostat dataset for this data, which provides more data than we need, so we will select only the necessary rows. The criteria are year 2018 and total population (both in terms of sex and age). Also, we can choose between different units, we have decided on "Per hundred thousands inhabitants", because it is a relative measure, so it is adequate to compare it between different countries. We expect **Prisoners per 100K** to negatively correlate with **Average Salary**.
 
 ```{r warning=FALSE}
 crim <- get_eurostat("crim_pris_age")
@@ -257,11 +258,12 @@ sumtable(
   factor.numeric = TRUE
 )
 ```
-Number of prisoners is much higher in eastern countries. As a result distribution is skewed left with mean $120$, median $104$ and standard deviation of $51$ prisoners per hundred thousands inhabitants.
+
+The number of prisoners is much higher in Eastern countries. As a result distribution is skewed left with a mean $120$, a median $104$ and a standard deviation of $51$ prisoners per hundred thousands inhabitants.
 
 ### Most Profitable NACEr2 A10 Cateogry
 
-We will use one more categorical feature, the most profitable NACEr2 A10 category. It must differentiate differently structured economies, as different countries have different sources of profit. For that we will use [nama_10_a10](https://ec.europa.eu/eurostat/databrowser/view/nama_10_a10/default/table?lang=en) Eurostat dataset. Categories presented in this dataset are not disjoint, but we will categories that are a part of a bigger union of sectors. As a unit of measure we will use Percents of GDP to stay relative to countries' scale.
+We will use one more categorical feature, the most profitable NACEr2 A10 category. It must differentiate between differently structured economies, as different countries have different sources of profit. For that, we will use [nama_10_a10](https://ec.europa.eu/eurostat/databrowser/view/nama_10_a10/default/table?lang=en) Eurostat dataset. Categories presented in this dataset are not disjoint, but we will categorize them as a part of a bigger union of sectors. As a unit of measure we will use Percents of GDP to stay relative to countries' scale.
 
 ```{r}
 nace <- get_eurostat("nama_10_a10", select_time="A")
@@ -290,7 +292,7 @@ unique(data$nace_r2)
 data
 ```
 
-Let us now display those classes and **Average Salary** in them.
+Let us now display those classes and the **Average Salary** in them.
 
 ```{r}
 color.fin = "#E77D88"
@@ -342,11 +344,11 @@ data %>%
   )
 ```
 
-Most of countries fall into 3 categories *Industry*, *Administration* and *Wholesale* with Luxemburg lonely holding to *Finance*. This leads to a flattened boxplot of **Finance**. Pooled average of *Administration* is the highest with *Industry* coming second and *Wholesale* coming last. *Industry* sector also shows the biggest spread with standard deviation of $16k$ euros.
+Most countries fall into 3 categories: *Industry*, *Administration* and *Wholesale,* with Luxembourg alone holding to *Finance*. This leads to a flattened boxplot of **Finance**. Pooled average of *Administration* is the highest, with *Industry* coming second, and *Wholesale* coming last. *Industry* sector also shows the biggest spread with a standard deviation of $16k$ euros.
 
 ### Daily Internet Use (%)
 
-Our fifth feature is **Daily Internet Use** coming from Eurostat dataset [isoc_ci_ifp_fu](https://ec.europa.eu/eurostat/databrowser/view/isoc_ci_ifp_fu/default/table?lang=en). We have no expectation for this variable to be related to **Average Salary**, because internet connection is both cheap and wide spread.
+Our fifth feature is **Daily Internet Use** coming from the Eurostat dataset [isoc_ci_ifp_fu](https://ec.europa.eu/eurostat/databrowser/view/isoc_ci_ifp_fu/default/table?lang=en). We have no expectation for this variable to be related to **Average Salary**, because internet connection is both cheap and widespread.
 
 ```{r}
 ifp <- get_eurostat("isoc_ci_ifp_fu")
@@ -390,9 +392,10 @@ sumtable(
 )
 ```
 
-**Daily Internet Usage** has a normal-looking distribution with heart of online activity at Denmark. Surprisingly internet usage has strong positive linear correlation with **Average Salary**.
+**Daily Internet Usage** has a normal-looking distribution with a heart of online activity in Denmark. Surprisingly, internet usage has a strong positive linear correlation with **Average Salary**.
 
-Let us take a look at the data on our hands and proceed to investigate dependency between regressors.
+Let us take a look at the data on our hands and proceed to investigate dependencies between the regressors.
+
 ```{r}
 data
 ```
@@ -447,12 +450,12 @@ yap about how we actually pass test on 5% confidence level.
 
 ### Normality of Residuals
 
-
 ```{r warning=F}
 plot(full_model, which=1)
 plot(full_model, which=2)
 shapiro.test(full_model$residuals)
 ```
+
 yap about good f-ing residuals
 
 ### Choosing submodel
