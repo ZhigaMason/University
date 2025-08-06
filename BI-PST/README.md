@@ -5,6 +5,6 @@
 Homework task was to conduct EDA and statistical analysis on [case0202](https://rdrr.io/cran/Sleuth2/man/case0202.html).
 
 Methods used:
-* Python
+* Python, LuaTex
 * scipy, numpy, pandas, matplotlib
 * Empirical density function estimation, (un)paired Student's t-test, Levene's test

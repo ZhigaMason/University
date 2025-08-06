@@ -6,8 +6,18 @@
 
 The first task was a binary classification, decision tree, k-nearest neighbors and grid hyperparameter search were used. Test accuracy was 80%.
 
+Methods used:
+* Python, Jupyter
+* scikit-learn, numpy, pandas, matplotlib
+* kNN, Decision Tree classifiers
+* Accuracy, Reciever Operator Curve, Confusion Matrix, F1 score
+
 ### Homework 02
 
 The second task involved a regression and an implementation of random forest. We have used polynomial regression, k-nearest neighbors and self-implemented random forest. Test RMSE is 1.47.
 
-
+Methods used:
+* Python, Jupyter
+* scikit-learn, numpy, pandas, matplotlib
+* Linear Regression, Decision Tree classifiers, Random Forest, kNN
+* RMSE, MAE, Regression line
