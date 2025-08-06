@@ -1,3 +1,0 @@
-=== Maksym Khavil's repo for BI-VIZ 2024/25
-
-Homeworks are in directories 01, 02, 03

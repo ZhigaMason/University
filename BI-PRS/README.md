@@ -1,23 +1,33 @@
 # BI-PRS-LS25-339
 
-All projects should be put into their respective directories.
+**BI-PRS** is a Practical Statistics course at [CTU FIT](https://fit.cvut.cz/en) that digs deep into R and statistical methods. It has included three team projects.
 
-## Harmonogram
-
-Soft deadline means feedback is provided and  project can be fixed. Hard deadline is the final one.
-
-- [x] Project 1: Soft deadline - 30.03; Hard deadline - 06.04
-- [x] Project 2: Soft deadline - 27.04; Hard deadline - 04.05
-- [x] Project 3: Hard deadline - 08.06
 
 ## Project 1
 
-We decided to choose Oleksandr Slyvka as our representative with M=6
+General statistical EDA and testing on [nama\_10r\_3empers](https://ec.europa.eu/eurostat/databrowser/view/nama_10r_3empers/default/table?lang=en) Eurostat dataset.
+
+Methods used:
+* tidyverse library suite, [mapSpain](https://ropenspain.github.io/mapSpain/)
+* Chi squared, Spearman correlation, Shapiro-Wixlon, Binomial, Kolmogorov-Smirnov tests
+
 
 ## Project 2
 
-We decided to choose Oleksandr Slyvka as our representative with M=6
+Statistical linear regression on [case1201](https://rdrr.io/cran/Sleuth2/man/case1201.html) from Sleuth2 dataset.
+
+Methods used:
+* tidyverse library suite, car
+* linear model, ANOVA, AOV, AIC, Cook's distance, VIF, Breush-Pagan test, Shapiro-Wilxon test
+
+Final adjusted R^2 is 91%
 
 ## Project 3
 
-We decided to choose Oleksandr Slyvka as our representative with M=6
+Statistical linear modelling and feature design for [nama\_10\_fte](https://ec.europa.eu/eurostat/databrowser/view/nama_10_fte/default/table?lang=en). We have handpicked regressors for this task. The whole approach is described in the notebook.
+
+Methods used:
+* tidyverse library suite, car
+* linear model, ANOVA, AIC, Cook's distance, VIF, Breush-Pagan test, Shapiro-Wilxon test
+
+Final adjusted R^2 is 84.4%
